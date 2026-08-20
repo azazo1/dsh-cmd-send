@@ -1,7 +1,4 @@
 node_modules/
-bun.lock
-bun.lockb
-pnpm-lock.yaml
 .tmp/
 *.log
 .DS_Store
