@@ -1,6 +1,6 @@
 {
   "name": "dsh-cmd-send",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Cmd+Enter to send in the dsh web GUI: Enter inserts a newline, Cmd+Enter queues while busy, Shift+Cmd+Enter steers",
   "license": "MIT",
   "type": "module",
