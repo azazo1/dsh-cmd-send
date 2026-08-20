@@ -1,5 +1,4 @@
 node_modules/
-lib/
 bun.lock
 bun.lockb
 pnpm-lock.yaml
