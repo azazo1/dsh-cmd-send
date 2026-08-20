@@ -1,0 +1,8 @@
+node_modules/
+lib/
+bun.lock
+bun.lockb
+pnpm-lock.yaml
+.tmp/
+*.log
+.DS_Store

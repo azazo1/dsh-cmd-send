@@ -1,0 +1,13 @@
+{
+  "id": "dsh-cmd-send",
+  "version": "0.1.0",
+  "main": "lib/index.js",
+  "description": "Cmd+Enter to send in the dsh web GUI: Enter inserts a newline, Cmd+Enter queues while busy, Shift+Cmd+Enter steers.",
+  "engines": {
+    "dsh": ">=0.1.0-rc.6"
+  },
+  "contributes": {
+    "tools": [],
+    "skills": []
+  }
+}
