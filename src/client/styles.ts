@@ -8,7 +8,7 @@ const css = `
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
-  margin-bottom: 16px;
+  /*margin-bottom: 16px;*/
   padding: 16px 0;
   border-bottom: 1px solid var(--dsw-alias-border-l2);
 }
