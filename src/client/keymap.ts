@@ -12,12 +12,14 @@ export interface KeyEventLike {
   altKey: boolean
   isComposing: boolean
   keyCode: number
+  /** 长按产生的重复 Enter; Cmd/Ctrl+Enter 重复时放行内置忽略逻辑. */
+  repeat: boolean
 }
 
 /** 决策结果. */
 export type KeyDecision =
   | { kind: 'pass' } // 放行内置处理 (默认 Enter 发送 / 菜单选择 / IME 组合等)
-  | { kind: 'newline' } // Enter 换行: 阻止 React 合成事件, 浏览器默认插入换行
+  | { kind: 'newline' } // Enter 换行: 伪装成 Shift+Enter, 走 Lexical 内置换行
   | { kind: 'send' } // Cmd/Ctrl+Enter: 发送; 忙碌时 Host 自然插入排队
   | { kind: 'steer' } // Shift+Cmd/Ctrl+Enter: 忙碌时插话发送, 空闲时普通发送
 
@@ -28,7 +30,7 @@ export interface DecideInput {
 }
 
 /**
- * 决定 composer textarea 上的一次 Enter 按键应如何处理.
+ * 决定 composer 上的一次 Enter 按键应如何处理.
  * 仅在 cmd-enter 模式下拦截; 其他情况一律放行内置逻辑.
  */
 export function decideKey(event: KeyEventLike, input: DecideInput): KeyDecision {
@@ -40,6 +42,8 @@ export function decideKey(event: KeyEventLike, input: DecideInput): KeyDecision 
   if (input.phase === 'adjudicating' || input.phase === 'submitting') return { kind: 'pass' }
   const meta = event.metaKey || event.ctrlKey
   if (meta) {
+    // 长按 Cmd/Ctrl+Enter 交给内置 keymap 吞掉, 避免连发.
+    if (event.repeat) return { kind: 'pass' }
     return event.shiftKey ? { kind: 'steer' } : { kind: 'send' }
   }
   // Shift+Enter (内置换行) 与 Alt+Enter 保持原样.

@@ -4,13 +4,13 @@
  */
 import { useSyncExternalStore, useState } from 'react'
 import { IconChevronDownOutline14, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
-import type { SettingsScope } from '@deepseek-ai/dsh-client-runtime/client'
+import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { DEFAULT_SEND_MODE, SEND_MODE_FIELD, type CmdSendSettings, type SendMode } from '../shared.ts'
 import type { CmdSendKey } from './locales.ts'
 
 /** 设置行完整 props: locale 座 + 注入的设置 scope. */
-export type SendModeRowProps = PropsLocale<'dsh-cmd-send'> & {
+export type SendModeRowProps = PropsRuntime<'settings.general.item'> & PropsLocale<'dsh-cmd-send'> & {
   scope: SettingsScope<CmdSendSettings>
 }
 

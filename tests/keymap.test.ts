@@ -14,6 +14,7 @@ function enter(overrides: Partial<KeyEventLike> = {}): KeyEventLike {
     altKey: false,
     isComposing: false,
     keyCode: 13,
+    repeat: false,
     ...overrides,
   }
 }
@@ -61,5 +62,14 @@ describe('decideKey', () => {
   it('Shift+Cmd/Ctrl+Enter 插话', () => {
     expect(decideKey(enter({ metaKey: true, shiftKey: true }), CMD_ENTER)).toEqual({ kind: 'steer' })
     expect(decideKey(enter({ ctrlKey: true, shiftKey: true }), CMD_ENTER)).toEqual({ kind: 'steer' })
+  })
+
+  it('长按 Cmd/Ctrl+Enter 放行, 避免连发', () => {
+    expect(decideKey(enter({ metaKey: true, repeat: true }), CMD_ENTER)).toEqual({ kind: 'pass' })
+    expect(decideKey(enter({ ctrlKey: true, repeat: true }), CMD_ENTER)).toEqual({ kind: 'pass' })
+  })
+
+  it('长按普通 Enter 仍换行', () => {
+    expect(decideKey(enter({ repeat: true }), CMD_ENTER)).toEqual({ kind: 'newline' })
   })
 })

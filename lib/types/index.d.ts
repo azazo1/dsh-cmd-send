@@ -1,7 +1,7 @@
 /**
  * dsh-cmd-send host 插件: 注册 dsh-cmd-send 设置命名空间, 持久化发送快捷键
  * 偏好 (发送模式选择). 客户端半部 (./client) 由 web server 以
- * /plugins/dsh-cmd-send/client.js 提供, 负责键盘拦截与设置行 UI.
+ * /plugins/dsh-cmd-send/client.js 提供, 负责 Lexical composer 键盘拦截与设置行 UI.
  */
 import type { Context } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';

@@ -1,15 +1,16 @@
 /**
  * 键盘控制器: 挂在 conversation.input.dock (session 作用域) 的一个隐身条目,
- * 通过 document 捕获阶段拦截 composer textarea 上的 Enter 按键, 实现
- * Cmd+Enter 发送 / Shift+Cmd+Enter 插话 / Enter 换行的键位映射.
+ * 通过 document 捕获阶段拦截 composer (Lexical contenteditable) 上的 Enter,
+ * 实现 Cmd+Enter 发送 / Shift+Cmd+Enter 插话 / Enter 换行的键位映射.
  * 仅在设置开启 cmd-enter 模式时生效, 其余情况完全放行内置逻辑.
  */
 import { useEffect, useRef } from 'react'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-// 类型: 加载 conversation SlotMap merge (dock 的 standardProps 类型).
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type { ISessions, SettingsScope } from '@deepseek-ai/dsh-client-runtime/client'
-import type { SessionId } from '@deepseek-ai/dsh-api-remotes/client'
+import type {} from '@deepseek-ai/dsh-client-ui-session/client'
+import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { DEFAULT_SEND_MODE, type CmdSendSettings } from '../shared.ts'
 import { decideKey } from './keymap.ts'
 
@@ -39,6 +40,31 @@ interface SteerContext {
   }
   /** sessions 服务. */
   sessions: ISessions
+}
+
+/**
+ * composer 输入面: Lexical 把根节点标成 data-composer-input.
+ * 按键 target 可能是根节点内部的 chip / 文本包装元素.
+ */
+export function isComposerInput(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && target.closest('[data-composer-input]') !== null
+}
+
+/**
+ * 把这次 Enter 伪装成 Shift+Enter, 让 Lexical 走内置换行而不是提交.
+ * @returns 是否成功改写了 shiftKey.
+ */
+export function markEnterAsLineBreak(event: KeyboardEvent): boolean {
+  try {
+    Object.defineProperty(event, 'shiftKey', {
+      configurable: true,
+      enumerable: true,
+      get: () => true,
+    })
+    return event.shiftKey === true
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -78,10 +104,7 @@ export function KeymapController({ useSession, useInput, inputActions, sessionId
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      const target = event.target
-      if (!(target instanceof HTMLTextAreaElement)) return
-      // 只处理 composer 输入区 (data-input-scroll 容器内的 textarea).
-      if (target.closest('[data-input-scroll]') === null) return
+      if (!isComposerInput(event.target)) return
       const state = latest.current
       if (state.input === undefined || state.inputActions === undefined) return
       const mode = scope.getSnapshot().value?.sendMode ?? DEFAULT_SEND_MODE
@@ -90,15 +113,21 @@ export function KeymapController({ useSession, useInput, inputActions, sessionId
         case 'pass':
           return
         case 'newline':
-          // 阻止 React 合成事件收到 Enter, 浏览器默认动作插入换行.
-          event.stopImmediatePropagation()
+          // Lexical 的 KEY_ENTER 在 shiftKey 时直接交给 plain-text 换行.
+          if (!markEnterAsLineBreak(event)) {
+            event.preventDefault()
+            event.stopImmediatePropagation()
+            document.execCommand('insertLineBreak')
+          }
           return
         case 'send':
+          if (state.input.draft.trim() === '' && state.input.imageIds.length === 0) return
           event.preventDefault()
           event.stopImmediatePropagation()
           state.inputActions.submit()
           return
         case 'steer':
+          if (state.input.draft.trim() === '' && state.input.imageIds.length === 0) return
           event.preventDefault()
           event.stopImmediatePropagation()
           void steerSend({

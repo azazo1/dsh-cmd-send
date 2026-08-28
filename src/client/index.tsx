@@ -5,11 +5,14 @@
  *   实现 Cmd+Enter 发送 / Shift+Cmd+Enter 插话 / Enter 换行的键位映射.
  * 发送模式偏好经 settingsScope 与 Host 设置文档同步.
  */
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
-// 类型: 加载 slots 的 slot map, locale 与 settingsScope 的 Context merge.
+import type { Context } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import { SETTINGS_NAMESPACE } from '../shared.ts'
 import { NS, en, zh } from './locales.ts'
 import { KeymapController } from './controller.tsx'
@@ -24,7 +27,7 @@ export const inject = ['slots', 'sessions', 'locale', 'settingsScope']
  * 组装键盘控制器与设置行.
  * @param ctx - client root context.
  */
-export function apply(ctx: ClientContext): void {
+export function apply(ctx: Context): void {
   adoptStyles()
   const scope = ctx.settingsScope.bind({
     namespace: SETTINGS_NAMESPACE,
@@ -44,7 +47,6 @@ export function apply(ctx: ClientContext): void {
     name: 'conversation.input.dock',
     id: 'dsh-cmd-send-keymap',
     order: 999,
-  }, (props) => (
-    <KeymapController {...props} sessions={ctx.sessions} scope={scope} />
-  )))
+    inject: () => ({ sessions: ctx.sessions, scope }),
+  }, KeymapController))
 }

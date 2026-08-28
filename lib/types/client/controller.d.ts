@@ -1,5 +1,6 @@
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
-import type { ISessions, SettingsScope } from '@deepseek-ai/dsh-client-runtime/client';
+import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client';
+import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client';
 import { type CmdSendSettings } from '../shared.ts';
 /** 控制器完整 props: dock slot 的运行时 props + sessions 服务 + 设置 scope. */
 export type KeymapControllerProps = PropsRuntime<'conversation.input.dock'> & {
@@ -8,6 +9,16 @@ export type KeymapControllerProps = PropsRuntime<'conversation.input.dock'> & {
     /** dsh-cmd-send 设置 scope (发送模式读取). */
     scope: SettingsScope<CmdSendSettings>;
 };
+/**
+ * composer 输入面: Lexical 把根节点标成 data-composer-input.
+ * 按键 target 可能是根节点内部的 chip / 文本包装元素.
+ */
+export declare function isComposerInput(target: EventTarget | null): boolean;
+/**
+ * 把这次 Enter 伪装成 Shift+Enter, 让 Lexical 走内置换行而不是提交.
+ * @returns 是否成功改写了 shiftKey.
+ */
+export declare function markEnterAsLineBreak(event: KeyboardEvent): boolean;
 /**
  * 渲染隐身控制器: 挂载全局 keydown 捕获监听, 返回 null.
  * 所有状态经 ref 传递, 监听器只挂载一次, 无需随渲染重建.

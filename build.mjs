@@ -5,7 +5,8 @@
  * 因此 client 半部是包裹在 ModuleLoader factory 握手里的 CJS bundle;
  * @deepseek-ai/dsh-* 与 react 保持外部 (由 app 的模块系统提供). Host 半部
  * 为纯 ESM, 面向 Node, 外部化 @deepseek-ai/dsh-* 与 cordis, 打包 schemastery
- * (Loader 会以 schema 校验 Config).
+ * (Loader 会以 schema 校验 Config). Composer 已是 Lexical contenteditable,
+ * client 运行时不再依赖 textarea.
  */
 import { build } from 'esbuild'
 import { mkdirSync } from 'node:fs'

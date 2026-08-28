@@ -10,6 +10,8 @@ export interface KeyEventLike {
     altKey: boolean;
     isComposing: boolean;
     keyCode: number;
+    /** 长按产生的重复 Enter; Cmd/Ctrl+Enter 重复时放行内置忽略逻辑. */
+    repeat: boolean;
 }
 /** 决策结果. */
 export type KeyDecision = {
@@ -27,7 +29,7 @@ export interface DecideInput {
     phase: InputPhase;
 }
 /**
- * 决定 composer textarea 上的一次 Enter 按键应如何处理.
+ * 决定 composer 上的一次 Enter 按键应如何处理.
  * 仅在 cmd-enter 模式下拦截; 其他情况一律放行内置逻辑.
  */
 export declare function decideKey(event: KeyEventLike, input: DecideInput): KeyDecision;
