@@ -93,14 +93,20 @@ jobs:
         with:
           ref: ${{ needs.version.outputs.source_ref }}
 
-      - name: 安装 bun
-        uses: oven-sh/setup-bun@v2
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
 
       - name: 安装依赖
-        run: bun install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: 构建与测试
-        run: bun run check
+        run: pnpm run check
 
       - name: 校验构建产物
         if: ${{ github.event_name == 'workflow_dispatch' || needs.version.outputs.is_release == 'true' }}
