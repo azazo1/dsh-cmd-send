@@ -6,9 +6,9 @@
  */
 import { useEffect, useRef } from 'react'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { InputState } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
-import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { ISessions, SessionSnapshot } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { DEFAULT_SEND_MODE, type CmdSendSettings } from '../shared.ts'
@@ -97,8 +97,8 @@ async function steerSend(context: SteerContext): Promise<void> {
  * 所有状态经 ref 传递, 监听器只挂载一次, 无需随渲染重建.
  */
 export function KeymapController({ useSession, useInput, inputActions, sessionId, sessions, scope }: KeymapControllerProps) {
-  const running = useSession((s) => s.running) ?? false
-  const input = useInput((s) => s)
+  const running = useSession((s: SessionSnapshot) => s.running) ?? false
+  const input = useInput((s: InputState) => s)
   const latest = useRef({ running, input, inputActions, sessionId, sessions })
   latest.current = { running, input, inputActions, sessionId, sessions }
 

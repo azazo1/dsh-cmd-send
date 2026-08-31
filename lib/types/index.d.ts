@@ -5,14 +5,11 @@
  */
 import type { Context } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
+import { type CmdSendSettings } from './shared.ts';
 /** Cordis 插件名 (Loader 入口与 client bundle id). */
 export declare const name = "dsh-cmd-send";
 /** dsh-cmd-send 设置 schema: 发送快捷键模式, 默认保持内置键位. */
-export declare const CmdSendSettingsSchema: z<Schemastery.ObjectS<{
-    sendMode: z<"enter" | "cmd-enter", "enter" | "cmd-enter">;
-}>, Schemastery.ObjectT<{
-    sendMode: z<"enter" | "cmd-enter", "enter" | "cmd-enter">;
-}>>;
+export declare const CmdSendSettingsSchema: z<CmdSendSettings>;
 /**
  * 注册 dsh-cmd-send 设置命名空间.
  * @param ctx - host cordis context.

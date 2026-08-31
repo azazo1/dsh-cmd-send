@@ -5,19 +5,20 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { settingsNamespace } from '@deepseek-ai/dsh-settings'
+import type {} from '@deepseek-ai/dsh-settings'
 import {
   DEFAULT_SEND_MODE,
   SEND_MODE_FIELD,
   SEND_MODES,
   SETTINGS_NAMESPACE,
+  type CmdSendSettings,
 } from './shared.ts'
 
 /** Cordis 插件名 (Loader 入口与 client bundle id). */
 export const name = 'dsh-cmd-send'
 
 /** dsh-cmd-send 设置 schema: 发送快捷键模式, 默认保持内置键位. */
-export const CmdSendSettingsSchema = z.object({
+export const CmdSendSettingsSchema: z<CmdSendSettings> = z.object({
   [SEND_MODE_FIELD]: z.union([...SEND_MODES]).default(DEFAULT_SEND_MODE),
 })
 
@@ -27,6 +28,6 @@ export const CmdSendSettingsSchema = z.object({
  */
 export function apply(ctx: Context): void {
   ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.register(settingsNamespace(SETTINGS_NAMESPACE), CmdSendSettingsSchema)
+    settingsCtx.settings.register(SETTINGS_NAMESPACE, CmdSendSettingsSchema)
   })
 }
