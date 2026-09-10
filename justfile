@@ -45,4 +45,5 @@ verify:
 # just clean
 # 删除生成的构建产物.
 clean:
-    rm -rf lib
+    rm -rf node_modules/
+    rm -rf .tmp/
