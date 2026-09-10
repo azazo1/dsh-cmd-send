@@ -4,7 +4,7 @@
   "main": "lib/index.js",
   "description": "Cmd+Enter to send in the dsh web GUI: Enter inserts a newline, Cmd+Enter queues while busy, Shift+Cmd+Enter steers.",
   "engines": {
-    "dsh": ">=0.1.2-alpha.1"
+    "dsh": ">=0.1.5-rc.1"
   },
   "contributes": {
     "tools": [],

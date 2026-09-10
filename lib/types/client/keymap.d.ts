@@ -1,6 +1,11 @@
 /** 键盘决策纯函数: 根据按键与输入状态决定动作, 与 DOM 解耦以便单元测试. */
+import type { InputState } from '@deepseek-ai/dsh-client-ui-conversation/client';
 /** 输入机的当前阶段 (对齐 dsh InputState.phase). */
-export type InputPhase = 'plain' | 'adjudicating' | 'claimed' | 'submitting';
+export type InputPhase = InputState['phase'];
+/** composer 内容视图: 判断是否"有东西可发"所需的最小字段. */
+export type ComposerContentView = Pick<InputState, 'draft' | 'attachmentIds'>;
+/** composer 是否有可发送内容: 正文非空白或存在草稿附件. */
+export declare function hasContent(input: ComposerContentView): boolean;
 /** 浏览器 KeyboardEvent 的最小视图 (测试可用普通对象模拟). */
 export interface KeyEventLike {
     key: string;
@@ -27,6 +32,8 @@ export type KeyDecision = {
 export interface DecideInput {
     mode: 'enter' | 'cmd-enter';
     phase: InputPhase;
+    /** composer 是否已有可发送内容; 空草稿的 Cmd/Ctrl+Enter 交还内置逻辑. */
+    content: boolean;
 }
 /**
  * 决定 composer 上的一次 Enter 按键应如何处理.

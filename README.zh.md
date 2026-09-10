@@ -3,7 +3,7 @@
 让 DeepSeek Harness Web 界面支持 Cmd+Enter 发送消息: Enter 只换行,
 Cmd+Enter 排队发送, Shift+Cmd+Enter 插话发送.
 
-需要 dsh `>=0.1.2-alpha.1`.
+需要 dsh `>=0.1.5-rc.1`.
 
 ## 键位
 

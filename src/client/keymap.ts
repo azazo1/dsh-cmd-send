@@ -1,7 +1,16 @@
 /** 键盘决策纯函数: 根据按键与输入状态决定动作, 与 DOM 解耦以便单元测试. */
+import type { InputState } from '@deepseek-ai/dsh-client-ui-conversation/client'
 
 /** 输入机的当前阶段 (对齐 dsh InputState.phase). */
-export type InputPhase = 'plain' | 'adjudicating' | 'claimed' | 'submitting'
+export type InputPhase = InputState['phase']
+
+/** composer 内容视图: 判断是否"有东西可发"所需的最小字段. */
+export type ComposerContentView = Pick<InputState, 'draft' | 'attachmentIds'>
+
+/** composer 是否有可发送内容: 正文非空白或存在草稿附件. */
+export function hasContent(input: ComposerContentView): boolean {
+  return input.draft.trim() !== '' || input.attachmentIds.length > 0
+}
 
 /** 浏览器 KeyboardEvent 的最小视图 (测试可用普通对象模拟). */
 export interface KeyEventLike {
@@ -27,6 +36,8 @@ export type KeyDecision =
 export interface DecideInput {
   mode: 'enter' | 'cmd-enter'
   phase: InputPhase
+  /** composer 是否已有可发送内容; 空草稿的 Cmd/Ctrl+Enter 交还内置逻辑. */
+  content: boolean
 }
 
 /**
@@ -44,6 +55,8 @@ export function decideKey(event: KeyEventLike, input: DecideInput): KeyDecision 
   if (meta) {
     // 长按 Cmd/Ctrl+Enter 交给内置 keymap 吞掉, 避免连发.
     if (event.repeat) return { kind: 'pass' }
+    // 草稿为空且无附件: 没有可发送的内容, 交还内置逻辑.
+    if (!input.content) return { kind: 'pass' }
     return event.shiftKey ? { kind: 'steer' } : { kind: 'send' }
   }
   // Shift+Enter (内置换行) 与 Alt+Enter 保持原样.

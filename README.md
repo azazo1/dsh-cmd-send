@@ -3,7 +3,7 @@
 Send messages with Cmd+Enter in the DeepSeek Harness web GUI: Enter inserts a
 newline, Cmd+Enter queues, Shift+Cmd+Enter steers.
 
-Requires dsh `>=0.1.2-alpha.1`.
+Requires dsh `>=0.1.5-rc.1`.
 
 ## Keymap
 

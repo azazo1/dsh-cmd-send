@@ -6,13 +6,13 @@
  */
 import { useEffect, useRef } from 'react'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type { InputState } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { InputActions, InputState } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type { ISessions, SessionSnapshot } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { DEFAULT_SEND_MODE, type CmdSendSettings } from '../shared.ts'
-import { decideKey } from './keymap.ts'
+import { decideKey, hasContent, type ComposerContentView } from './keymap.ts'
 
 /** 控制器完整 props: dock slot 的运行时 props + sessions 服务 + 设置 scope. */
 export type KeymapControllerProps = PropsRuntime<'conversation.input.dock'> & {
@@ -28,16 +28,10 @@ interface SteerContext {
   sessionId: SessionId
   /** 会话是否忙碌 (agent 正在运行). */
   running: boolean
-  /** 当前输入状态快照. */
-  input: {
-    draft: string
-    imageIds: readonly unknown[]
-  }
+  /** 当前草稿内容. */
+  input: ComposerContentView
   /** 输入动作面 (setDraft / submit). */
-  actions: {
-    setDraft(text: string): void
-    submit(): void
-  }
+  actions: Pick<InputActions, 'setDraft' | 'submit'>
   /** sessions 服务. */
   sessions: ISessions
 }
@@ -69,13 +63,17 @@ export function markEnterAsLineBreak(event: KeyboardEvent): boolean {
 
 /**
  * 忙碌时以 steer 模式发送当前草稿: 先清空草稿, 再通过会话的公开
- * prompt 通道以 steer 模式发送; 失败则恢复草稿. 空闲或带图片时退回
+ * prompt 通道以 steer 模式发送; 失败则恢复草稿. 空闲或带附件时退回
  * 普通提交 (queue), 由 Host 决定直接发送或排队.
+ *
+ * 拦截动作已经吃掉了这次按键, 因此任何异常都必须兜底成普通提交, 否则
+ * 用户会看到 "按了没反应". 上游接口漂移时也由此路径降级而不是静默丢失.
  */
 async function steerSend(context: SteerContext): Promise<void> {
   const { input, actions } = context
-  if (input.draft.trim() === '' && input.imageIds.length === 0) return
-  if (!context.running || input.imageIds.length > 0) {
+  const text = input.draft
+  // 带附件的草稿无法走纯文本 steer 通道, 交给 composer 自身的提交逻辑.
+  if (!context.running || input.attachmentIds.length > 0) {
     actions.submit()
     return
   }
@@ -84,11 +82,14 @@ async function steerSend(context: SteerContext): Promise<void> {
     actions.submit()
     return
   }
-  const text = input.draft
   actions.setDraft('')
-  const result = await session.prompt([{ type: 'text', text }], 'steer')
-  if (!result.ok) {
+  try {
+    const result = await session.prompt([{ type: 'text', text }], 'steer')
+    if (!result.ok) actions.setDraft(text)
+  } catch (error) {
+    console.error('[dsh-cmd-send] steer 发送失败, 退回普通提交', error)
     actions.setDraft(text)
+    actions.submit()
   }
 }
 
@@ -108,7 +109,11 @@ export function KeymapController({ useSession, useInput, inputActions, sessionId
       const state = latest.current
       if (state.input === undefined || state.inputActions === undefined) return
       const mode = scope.getSnapshot().value?.sendMode ?? DEFAULT_SEND_MODE
-      const decision = decideKey(event, { mode, phase: state.input.phase })
+      const decision = decideKey(event, {
+        mode,
+        phase: state.input.phase,
+        content: hasContent(state.input),
+      })
       switch (decision.kind) {
         case 'pass':
           return
@@ -121,13 +126,11 @@ export function KeymapController({ useSession, useInput, inputActions, sessionId
           }
           return
         case 'send':
-          if (state.input.draft.trim() === '' && state.input.imageIds.length === 0) return
           event.preventDefault()
           event.stopImmediatePropagation()
           state.inputActions.submit()
           return
         case 'steer':
-          if (state.input.draft.trim() === '' && state.input.imageIds.length === 0) return
           event.preventDefault()
           event.stopImmediatePropagation()
           void steerSend({
