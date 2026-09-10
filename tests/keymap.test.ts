@@ -3,9 +3,10 @@ import { describe, expect, it } from 'vitest'
 import type { DraftAttachmentId } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { decideKey, hasContent, type DecideInput, type KeyEventLike } from '../src/client/keymap.ts'
 
-const CMD_ENTER: DecideInput = { mode: 'cmd-enter', phase: 'plain', content: true }
-const CMD_ENTER_EMPTY: DecideInput = { mode: 'cmd-enter', phase: 'plain', content: false }
-const DEFAULT: DecideInput = { mode: 'enter', phase: 'plain', content: true }
+const CMD_ENTER: DecideInput = { mode: 'cmd-enter', phase: 'plain', content: true, candidateHighlight: false }
+const CMD_ENTER_EMPTY: DecideInput = { mode: 'cmd-enter', phase: 'plain', content: false, candidateHighlight: false }
+const CMD_ENTER_CANDIDATE: DecideInput = { mode: 'cmd-enter', phase: 'plain', content: true, candidateHighlight: true }
+const DEFAULT: DecideInput = { mode: 'enter', phase: 'plain', content: true, candidateHighlight: false }
 
 function enter(overrides: Partial<KeyEventLike> = {}): KeyEventLike {
   return {
@@ -53,7 +54,22 @@ describe('decideKey', () => {
   })
 
   it('命令候选菜单打开时 Enter 放行 (菜单消费)', () => {
-    expect(decideKey(enter(), { mode: 'cmd-enter', phase: 'claimed', content: true })).toEqual({ kind: 'pass' })
+    expect(decideKey(enter(), { mode: 'cmd-enter', phase: 'claimed', content: true, candidateHighlight: false })).toEqual({ kind: 'pass' })
+  })
+
+  it('候选菜单高亮候选时 Enter 放行 (选中候选而不是换行)', () => {
+    expect(decideKey(enter(), CMD_ENTER_CANDIDATE)).toEqual({ kind: 'pass' })
+    expect(decideKey(enter({ repeat: true }), CMD_ENTER_CANDIDATE)).toEqual({ kind: 'pass' })
+  })
+
+  it('候选菜单高亮时 Cmd/Ctrl+Enter 仍发送 (发送手势优先于菜单)', () => {
+    expect(decideKey(enter({ metaKey: true }), CMD_ENTER_CANDIDATE)).toEqual({ kind: 'send' })
+    expect(decideKey(enter({ ctrlKey: true }), CMD_ENTER_CANDIDATE)).toEqual({ kind: 'send' })
+    expect(decideKey(enter({ metaKey: true, shiftKey: true }), CMD_ENTER_CANDIDATE)).toEqual({ kind: 'steer' })
+  })
+
+  it('候选菜单高亮时未开启 cmd-enter 模式仍全部放行', () => {
+    expect(decideKey(enter(), { ...DEFAULT, candidateHighlight: true })).toEqual({ kind: 'pass' })
   })
 
   it('草稿为空且无附件时 Cmd/Ctrl+Enter 放行 (没有可发送内容)', () => {

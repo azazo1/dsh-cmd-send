@@ -19,6 +19,11 @@ Switch **Send shortcut** to **Cmd+Enter to send** in Settings -> General:
 - Busy means the agent is running; queued messages execute in FIFO order after
   the current turn finishes.
 - Steer interrupts the running turn and handles your message immediately.
+- The `/` command and `@` reference completions keep working: while the
+  candidate menu shows a highlighted row, Enter picks that candidate instead of
+  breaking the line. Cmd/Ctrl+Enter stays the send gesture and bypasses the
+  menu, so a draft that starts with `/` can always be sent as typed (typing a
+  full `/skill-name` and pressing Cmd/Ctrl+Enter sends it right away).
 - IME composition is untouched: the Enter that confirms a candidate never
   sends.
 - dsh also has a built-in **Enter behavior while busy** row. This plugin's
@@ -55,6 +60,10 @@ dsh plugin --profile web remove dsh-cmd-send
   `inputActions.submit()` (queue) and the session's public
   `prompt(..., 'steer')` (steer). Disabled, it passes every key through to the
   built-in logic. Plain Enter is rewritten as Shift+Enter so Lexical inserts a
-  line break.
+  line break; before rewriting, the controller checks the candidate menu of the
+  same composer card (`[data-composer-card]` holding a `[data-trigger-menu]`
+  listbox with `aria-activedescendant`) and passes the bare Enter back to the
+  built-in menu arbitration whenever a candidate is highlighted.
+  Cmd/Ctrl+Enter is never passed back: it always sends.
 - The send preference persists through the host `settings` service
   (`dsh-cmd-send.sendMode`); the row registers on `settings.general.item`.

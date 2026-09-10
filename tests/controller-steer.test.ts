@@ -34,11 +34,25 @@ function mount(options: {
   attachmentIds?: readonly unknown[]
   running: boolean
   mode?: SendMode
+  /** 在同一个 composer 卡片内放一个候选菜单 (/, @ 补全), 可带高亮项. */
+  menu?: { highlight: boolean }
 }): Harness {
+  const card = document.createElement('div')
+  card.setAttribute('data-composer-card', '')
   const composer = document.createElement('div')
   composer.setAttribute('data-composer-input', '')
+  card.append(composer)
+  if (options.menu !== undefined) {
+    const menu = document.createElement('div')
+    menu.setAttribute('data-trigger-menu', '')
+    const list = document.createElement('div')
+    list.setAttribute('role', 'listbox')
+    if (options.menu.highlight) list.setAttribute('aria-activedescendant', 'dsh-slash-option-skill-0')
+    menu.append(list)
+    card.append(menu)
+  }
   const container = document.createElement('div')
-  document.body.append(composer, container)
+  document.body.append(card, container)
 
   const actions = { setDraft: vi.fn(), submit: vi.fn() }
   const prompt = vi.fn(async () => ({ ok: true, value: { accepted: true } }))
@@ -70,19 +84,24 @@ function mount(options: {
     prompt,
     unmount: () => {
       act(() => root.unmount())
-      composer.remove()
+      card.remove()
       container.remove()
     },
   }
 }
 
-/** 在 composer 上派发一次 Enter 组合键. */
-function pressEnter(composer: HTMLElement, init: KeyboardEventInit): boolean {
+/** 在 composer 上派发一次 Enter 组合键, 返回事件本身 (便于查看 shiftKey 改写). */
+function dispatchEnter(composer: HTMLElement, init: KeyboardEventInit): KeyboardEvent {
   const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true, ...init })
   act(() => {
     composer.dispatchEvent(event)
   })
-  return event.defaultPrevented
+  return event
+}
+
+/** 在 composer 上派发一次 Enter 组合键, 返回内置逻辑是否已被取消 (preventDefault). */
+function pressEnter(composer: HTMLElement, init: KeyboardEventInit): boolean {
+  return dispatchEnter(composer, init).defaultPrevented
 }
 
 let harness: Harness | undefined
@@ -126,6 +145,35 @@ describe('KeymapController', () => {
   it('关闭插件键位时完全不拦截', () => {
     harness = mount({ draft: '你好', running: true, mode: DEFAULT_SEND_MODE })
     expect(pressEnter(harness.composer, { metaKey: true })).toBe(false)
+    expect(harness.actions.submit).not.toHaveBeenCalled()
+  })
+
+  it('候选菜单高亮候选时 Enter 交还菜单 (不改写成换行)', () => {
+    harness = mount({ draft: '/ski', running: false, menu: { highlight: true } })
+    const event = dispatchEnter(harness.composer, {})
+    expect(event.shiftKey).toBe(false)
+    expect(event.defaultPrevented).toBe(false)
+    expect(harness.actions.submit).not.toHaveBeenCalled()
+  })
+
+  it('候选菜单高亮候选时 Cmd+Enter 仍直接发送草稿', () => {
+    harness = mount({ draft: '/ski', running: false, menu: { highlight: true } })
+    const event = dispatchEnter(harness.composer, { metaKey: true })
+    expect(event.defaultPrevented).toBe(true)
+    expect(harness.actions.submit).toHaveBeenCalledTimes(1)
+    expect(harness.prompt).not.toHaveBeenCalled()
+  })
+
+  it('候选菜单高亮候选时 Shift+Cmd+Enter 仍插话发送', async () => {
+    harness = mount({ draft: '/ski', running: true, menu: { highlight: true } })
+    expect(pressEnter(harness.composer, { metaKey: true, shiftKey: true })).toBe(true)
+    await act(async () => { await Promise.resolve() })
+    expect(harness.prompt).toHaveBeenCalledWith([{ type: 'text', text: '/ski' }], 'steer')
+  })
+
+  it('候选菜单打开但没有高亮项时 Enter 仍然是换行', () => {
+    harness = mount({ draft: '/zzz', running: false, menu: { highlight: false } })
+    expect(dispatchEnter(harness.composer, {}).shiftKey).toBe(true)
     expect(harness.actions.submit).not.toHaveBeenCalled()
   })
 

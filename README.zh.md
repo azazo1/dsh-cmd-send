@@ -18,6 +18,10 @@ Cmd+Enter 排队发送, Shift+Cmd+Enter 插话发送.
 
 - 忙碌指智能体正在运行; 排队消息会在当前回合结束后按 FIFO 依次执行.
 - 插话 (steer) 会打断当前回合, 立即处理你的消息.
+- `/` 命令补全与 `@` 引用补全照常可用: 候选菜单高亮着某一行时, 不带修饰的
+  Enter 是选中候选而不是换行. Cmd/Ctrl+Enter 始终是发送手势并绕过菜单, 因此
+  以 `/` 开头的草稿总有出路: 直接把技能名打全 (`/skill-name`) 再按
+  Cmd/Ctrl+Enter 就发出去了 (技能由 Host 侧识别, 不必先按菜单选中).
 - 中文输入法组合输入不受影响, 确认候选词的 Enter 不会误发送.
 - dsh 另外有内置的 **繁忙时 Enter 键行为**. 本插件切到 Cmd+Enter 模式后会接管
   普通 Enter, 因此该内置项只在本插件保持 **Enter 发送** 时生效.
@@ -48,6 +52,9 @@ dsh plugin --profile web remove dsh-cmd-send
   阶段拦截 Lexical composer (`[data-composer-input]`) 的 Enter, 通过
   `inputActions.submit()` (排队发送) 与会话公开的 `prompt(..., 'steer')`
   (插话发送) 执行动作; 未开启时完全放行内置逻辑. 普通 Enter 会被改写成
-  Shift+Enter, 由 Lexical 插入换行.
+  Shift+Enter, 由 Lexical 插入换行; 改写之前先看同一个 composer 卡片
+  (`[data-composer-card]` 内带 `aria-activedescendant` 的 `[data-trigger-menu]`
+  列表) 是否高亮着候选, 是则把这次裸 Enter 交还内置的菜单仲裁;
+  Cmd/Ctrl+Enter 从不交还, 一律发送.
 - 发送偏好经 Host `settings` 服务持久化 (`dsh-cmd-send.sendMode`), 设置行注册
   于 `settings.general.item`.

@@ -15,6 +15,12 @@ export type KeymapControllerProps = PropsRuntime<'conversation.input.dock'> & {
  */
 export declare function isComposerInput(target: EventTarget | null): boolean;
 /**
+ * 判断这次按键所在的 composer 是否正显示带高亮的候选菜单 (/, @ 补全).
+ * 菜单渲染在 composer 卡片内部, 因此以卡片为查找范围, 避免同一页面里
+ * 其他 composer (子 agent 会话等) 的菜单干扰本会话的键位判断.
+ */
+export declare function hasHighlightedCandidate(target: EventTarget | null): boolean;
+/**
  * 把这次 Enter 伪装成 Shift+Enter, 让 Lexical 走内置换行而不是提交.
  * @returns 是否成功改写了 shiftKey.
  */

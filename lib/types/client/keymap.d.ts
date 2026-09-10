@@ -34,6 +34,12 @@ export interface DecideInput {
     phase: InputPhase;
     /** composer 是否已有可发送内容; 空草稿的 Cmd/Ctrl+Enter 交还内置逻辑. */
     content: boolean;
+    /**
+     * 触发候选菜单 (/, @ 补全) 是否开着并高亮了一行.
+     * 只影响不带 Cmd/Ctrl 的 Enter: 那时 Enter 属于菜单 (选中当前候选),
+     * 而 Cmd/Ctrl+Enter 始终是插件的发送手势, 会绕过菜单直接发送当前草稿.
+     */
+    candidateHighlight: boolean;
 }
 /**
  * 决定 composer 上的一次 Enter 按键应如何处理.

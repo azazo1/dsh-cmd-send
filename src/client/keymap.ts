@@ -38,6 +38,12 @@ export interface DecideInput {
   phase: InputPhase
   /** composer 是否已有可发送内容; 空草稿的 Cmd/Ctrl+Enter 交还内置逻辑. */
   content: boolean
+  /**
+   * 触发候选菜单 (/, @ 补全) 是否开着并高亮了一行.
+   * 只影响不带 Cmd/Ctrl 的 Enter: 那时 Enter 属于菜单 (选中当前候选),
+   * 而 Cmd/Ctrl+Enter 始终是插件的发送手势, 会绕过菜单直接发送当前草稿.
+   */
+  candidateHighlight: boolean
 }
 
 /**
@@ -53,6 +59,8 @@ export function decideKey(event: KeyEventLike, input: DecideInput): KeyDecision 
   if (input.phase === 'adjudicating' || input.phase === 'submitting') return { kind: 'pass' }
   const meta = event.metaKey || event.ctrlKey
   if (meta) {
+    // 发送手势优先于候选菜单: 菜单开着时 Cmd/Ctrl+Enter 也照样发送当前
+    // 草稿 (按原样发, 不套用高亮候选), 这样 "/xxx" 这类开头的消息总有出路.
     // 长按 Cmd/Ctrl+Enter 交给内置 keymap 吞掉, 避免连发.
     if (event.repeat) return { kind: 'pass' }
     // 草稿为空且无附件: 没有可发送的内容, 交还内置逻辑.
@@ -61,7 +69,10 @@ export function decideKey(event: KeyEventLike, input: DecideInput): KeyDecision 
   }
   // Shift+Enter (内置换行) 与 Alt+Enter 保持原样.
   if (event.shiftKey || event.altKey) return { kind: 'pass' }
-  // 命令候选菜单 (slash 菜单) 打开时, Enter 由菜单消费 (选择候选).
+  // 候选菜单 (/, @ 补全) 高亮着候选: 不带修饰的 Enter 是 "补全" 手势,
+  // 交给菜单消费 (选中当前高亮候选), 而不是换行.
+  if (input.candidateHighlight) return { kind: 'pass' }
+  // 命令 token 已 claim (进入命令模式): Enter 由内置提交逻辑消费.
   if (input.phase === 'claimed') return { kind: 'pass' }
   return { kind: 'newline' }
 }
