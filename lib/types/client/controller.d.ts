@@ -4,7 +4,7 @@ import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client';
 import { type CmdSendSettings } from '../shared.ts';
 /** 控制器完整 props: dock slot 的运行时 props + sessions 服务 + 设置 scope. */
 export type KeymapControllerProps = PropsRuntime<'conversation.input.dock'> & {
-    /** sessions 服务, 用于解析目标会话的 ISession (steer 发送). */
+    /** sessions 服务, 用于由会话 id 解析会话作用域 (steer 提交). */
     sessions: ISessions;
     /** dsh-cmd-send 设置 scope (发送模式读取). */
     scope: SettingsScope<CmdSendSettings>;

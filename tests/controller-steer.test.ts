@@ -1,7 +1,8 @@
 /** @vitest-environment jsdom */
 /**
  * 控制器端到端回归测试: 用真实 React 挂载 KeymapController, 在 composer 上
- * 派发按键, 校验 Cmd+Enter 与 Shift+Cmd+Enter 分别走 submit 与会话 steer 通道.
+ * 派发按键, 校验 Cmd+Enter 走 composer 自身的提交, Shift+Cmd+Enter 交棒给
+ * 内置提交机的 steer 模式 (带附件时同样如此).
  * 这里刻意按新版 dsh 的 InputState 形状 (draft/attachmentIds/phase) 构造输入,
  * 防止上游字段改名后插件静默失效.
  */
@@ -22,11 +23,14 @@ interface Harness {
   composer: HTMLElement
   /** 输入动作回调. */
   actions: { setDraft: ReturnType<typeof vi.fn>; submit: ReturnType<typeof vi.fn> }
-  /** 会话 steer 通道. */
-  prompt: ReturnType<typeof vi.fn>
+  /** 内置提交机的提交入口 (steer 交棒目标). */
+  submit: ReturnType<typeof vi.fn>
   /** 卸载并清理 DOM. */
   unmount(): void
 }
+
+/** 子 agent 会话地址 (主会话为 null). */
+type SubagentStub = { address: { mode: string } } | null
 
 /** 按给定草稿与忙碌状态挂载控制器. */
 function mount(options: {
@@ -34,6 +38,12 @@ function mount(options: {
   attachmentIds?: readonly unknown[]
   running: boolean
   mode?: SendMode
+  /** 会话是否为子 agent 会话 (默认主会话). */
+  subagent?: SubagentStub
+  /** 会话作用域解析是否可用 (默认可用). */
+  scopeResolvable?: boolean
+  /** conversation 服务是否已提供 (默认已提供). */
+  conversationAvailable?: boolean
   /** 在同一个 composer 卡片内放一个候选菜单 (/, @ 补全), 可带高亮项. */
   menu?: { highlight: boolean }
 }): Harness {
@@ -55,7 +65,7 @@ function mount(options: {
   document.body.append(card, container)
 
   const actions = { setDraft: vi.fn(), submit: vi.fn() }
-  const prompt = vi.fn(async () => ({ ok: true, value: { accepted: true } }))
+  const submit = vi.fn()
   const input = {
     draft: options.draft,
     attachmentIds: options.attachmentIds ?? [],
@@ -64,12 +74,15 @@ function mount(options: {
     occurrences: [],
     queue: [],
   }
+  const snapshot = { running: options.running, subagent: options.subagent ?? null }
+  const conversation = { input: { for: () => ({ submit }) } }
+  const actx = { get: (name: string) => (name === 'conversation' && options.conversationAvailable !== false ? conversation : undefined) }
   const props = {
-    useSession: (select: (snapshot: { running: boolean }) => unknown) => select({ running: options.running }),
+    useSession: (select: (value: typeof snapshot) => unknown) => select(snapshot),
     useInput: (select: (state: typeof input) => unknown) => select(input),
     inputActions: { ...actions, addAttachments: vi.fn(), removeAttachment: vi.fn(), pruneAttachments: vi.fn() },
     sessionId: 'session-1',
-    sessions: { binding: () => ({ session: { prompt } }) },
+    sessions: { scope: () => (options.scopeResolvable === false ? undefined : actx) },
     scope: { getSnapshot: () => ({ value: { sendMode: options.mode ?? 'cmd-enter' } as CmdSendSettings }) },
   } as unknown as KeymapControllerProps
 
@@ -81,7 +94,7 @@ function mount(options: {
     root,
     composer,
     actions,
-    prompt,
+    submit,
     unmount: () => {
       act(() => root.unmount())
       card.remove()
@@ -115,31 +128,63 @@ describe('KeymapController', () => {
     harness = mount({ draft: '你好', running: false })
     expect(pressEnter(harness.composer, { metaKey: true })).toBe(true)
     expect(harness.actions.submit).toHaveBeenCalledTimes(1)
-    expect(harness.prompt).not.toHaveBeenCalled()
+    expect(harness.submit).not.toHaveBeenCalled()
   })
 
-  it('忙碌时 Shift+Cmd+Enter 以 steer 模式发送草稿', async () => {
+  it('忙碌时 Shift+Cmd+Enter 以 steer 模式交棒内置提交机', () => {
     harness = mount({ draft: '打断一下', running: true })
     expect(pressEnter(harness.composer, { metaKey: true, shiftKey: true })).toBe(true)
-    await act(async () => { await Promise.resolve() })
-    expect(harness.prompt).toHaveBeenCalledWith([{ type: 'text', text: '打断一下' }], 'steer')
-    expect(harness.actions.setDraft).toHaveBeenCalledWith('')
+    expect(harness.submit).toHaveBeenCalledWith('steer')
+    expect(harness.actions.submit).not.toHaveBeenCalled()
+    expect(harness.actions.setDraft).not.toHaveBeenCalled()
+  })
+
+  it('忙碌时 Shift+Cmd+Enter 带附件同样以 steer 模式提交', () => {
+    harness = mount({ draft: '看图', attachmentIds: ['attachment-1'], running: true })
+    expect(pressEnter(harness.composer, { metaKey: true, shiftKey: true })).toBe(true)
+    expect(harness.submit).toHaveBeenCalledWith('steer')
     expect(harness.actions.submit).not.toHaveBeenCalled()
   })
 
-  it('忙碌时 Shift+Cmd+Enter 带附件退回普通提交', async () => {
-    harness = mount({ draft: '看图', attachmentIds: ['attachment-1'], running: true })
+  it('只有附件没有正文时 Shift+Cmd+Enter 也以 steer 模式提交', () => {
+    harness = mount({ draft: '   ', attachmentIds: ['attachment-1'], running: true })
     expect(pressEnter(harness.composer, { metaKey: true, shiftKey: true })).toBe(true)
-    await act(async () => { await Promise.resolve() })
+    expect(harness.submit).toHaveBeenCalledWith('steer')
+  })
+
+  it('空闲时 Shift+Cmd+Enter 退回普通提交', () => {
+    harness = mount({ draft: '你好', running: false })
+    expect(pressEnter(harness.composer, { metaKey: true, shiftKey: true })).toBe(true)
     expect(harness.actions.submit).toHaveBeenCalledTimes(1)
-    expect(harness.prompt).not.toHaveBeenCalled()
+    expect(harness.submit).not.toHaveBeenCalled()
+  })
+
+  it('子 agent 会话不可续聊时 Shift+Cmd+Enter 退回普通提交', () => {
+    harness = mount({ draft: '看图', attachmentIds: ['attachment-1'], running: true, subagent: { address: { mode: 'one-shot' } } })
+    expect(pressEnter(harness.composer, { metaKey: true, shiftKey: true })).toBe(true)
+    expect(harness.actions.submit).toHaveBeenCalledTimes(1)
+    expect(harness.submit).not.toHaveBeenCalled()
+  })
+
+  it('会话作用域解析不到时 Shift+Cmd+Enter 退回普通提交', () => {
+    harness = mount({ draft: '看图', attachmentIds: ['attachment-1'], running: true, scopeResolvable: false })
+    expect(pressEnter(harness.composer, { metaKey: true, shiftKey: true })).toBe(true)
+    expect(harness.actions.submit).toHaveBeenCalledTimes(1)
+    expect(harness.submit).not.toHaveBeenCalled()
+  })
+
+  it('conversation 服务缺失时 Shift+Cmd+Enter 退回普通提交', () => {
+    harness = mount({ draft: '看图', running: true, conversationAvailable: false })
+    expect(pressEnter(harness.composer, { metaKey: true, shiftKey: true })).toBe(true)
+    expect(harness.actions.submit).toHaveBeenCalledTimes(1)
+    expect(harness.submit).not.toHaveBeenCalled()
   })
 
   it('草稿为空且无附件时 Cmd+Enter 交还内置逻辑', () => {
     harness = mount({ draft: '   ', running: true })
     expect(pressEnter(harness.composer, { metaKey: true, shiftKey: true })).toBe(false)
     expect(harness.actions.submit).not.toHaveBeenCalled()
-    expect(harness.prompt).not.toHaveBeenCalled()
+    expect(harness.submit).not.toHaveBeenCalled()
   })
 
   it('关闭插件键位时完全不拦截', () => {
@@ -161,27 +206,18 @@ describe('KeymapController', () => {
     const event = dispatchEnter(harness.composer, { metaKey: true })
     expect(event.defaultPrevented).toBe(true)
     expect(harness.actions.submit).toHaveBeenCalledTimes(1)
-    expect(harness.prompt).not.toHaveBeenCalled()
+    expect(harness.submit).not.toHaveBeenCalled()
   })
 
-  it('候选菜单高亮候选时 Shift+Cmd+Enter 仍插话发送', async () => {
+  it('候选菜单高亮候选时 Shift+Cmd+Enter 仍插话发送', () => {
     harness = mount({ draft: '/ski', running: true, menu: { highlight: true } })
     expect(pressEnter(harness.composer, { metaKey: true, shiftKey: true })).toBe(true)
-    await act(async () => { await Promise.resolve() })
-    expect(harness.prompt).toHaveBeenCalledWith([{ type: 'text', text: '/ski' }], 'steer')
+    expect(harness.submit).toHaveBeenCalledWith('steer')
   })
 
   it('候选菜单打开但没有高亮项时 Enter 仍然是换行', () => {
     harness = mount({ draft: '/zzz', running: false, menu: { highlight: false } })
     expect(dispatchEnter(harness.composer, {}).shiftKey).toBe(true)
     expect(harness.actions.submit).not.toHaveBeenCalled()
-  })
-
-  it('steer 发送失败时恢复草稿', async () => {
-    harness = mount({ draft: '会失败', running: true })
-    harness.prompt.mockResolvedValueOnce({ ok: false, error: new Error('nope') })
-    pressEnter(harness.composer, { metaKey: true, shiftKey: true })
-    await act(async () => { await Promise.resolve() })
-    expect(harness.actions.setDraft).toHaveBeenLastCalledWith('会失败')
   })
 })

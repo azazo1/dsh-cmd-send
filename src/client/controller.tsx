@@ -8,34 +8,20 @@
  */
 import { useEffect, useRef } from 'react'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type { InputActions, InputState } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { InputState } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type { ISessions, SessionSnapshot } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { DEFAULT_SEND_MODE, type CmdSendSettings } from '../shared.ts'
-import { decideKey, hasContent, type ComposerContentView } from './keymap.ts'
+import { decideKey, hasContent } from './keymap.ts'
+import { steeringAvailable, submitSteer } from './steer.ts'
 
 /** 控制器完整 props: dock slot 的运行时 props + sessions 服务 + 设置 scope. */
 export type KeymapControllerProps = PropsRuntime<'conversation.input.dock'> & {
-  /** sessions 服务, 用于解析目标会话的 ISession (steer 发送). */
+  /** sessions 服务, 用于由会话 id 解析会话作用域 (steer 提交). */
   sessions: ISessions
   /** dsh-cmd-send 设置 scope (发送模式读取). */
   scope: SettingsScope<CmdSendSettings>
-}
-
-/** 一次 steer 发送所需的现场信息. */
-interface SteerContext {
-  /** 目标会话 id. */
-  sessionId: SessionId
-  /** 会话是否忙碌 (agent 正在运行). */
-  running: boolean
-  /** 当前草稿内容. */
-  input: ComposerContentView
-  /** 输入动作面 (setDraft / submit). */
-  actions: Pick<InputActions, 'setDraft' | 'submit'>
-  /** sessions 服务. */
-  sessions: ISessions
 }
 
 /**
@@ -82,46 +68,15 @@ export function markEnterAsLineBreak(event: KeyboardEvent): boolean {
 }
 
 /**
- * 忙碌时以 steer 模式发送当前草稿: 先清空草稿, 再通过会话的公开
- * prompt 通道以 steer 模式发送; 失败则恢复草稿. 空闲或带附件时退回
- * 普通提交 (queue), 由 Host 决定直接发送或排队.
- *
- * 拦截动作已经吃掉了这次按键, 因此任何异常都必须兜底成普通提交, 否则
- * 用户会看到 "按了没反应". 上游接口漂移时也由此路径降级而不是静默丢失.
- */
-async function steerSend(context: SteerContext): Promise<void> {
-  const { input, actions } = context
-  const text = input.draft
-  // 带附件的草稿无法走纯文本 steer 通道, 交给 composer 自身的提交逻辑.
-  if (!context.running || input.attachmentIds.length > 0) {
-    actions.submit()
-    return
-  }
-  const session = context.sessions.binding(context.sessionId)?.session
-  if (session === undefined) {
-    actions.submit()
-    return
-  }
-  actions.setDraft('')
-  try {
-    const result = await session.prompt([{ type: 'text', text }], 'steer')
-    if (!result.ok) actions.setDraft(text)
-  } catch (error) {
-    console.error('[dsh-cmd-send] steer 发送失败, 退回普通提交', error)
-    actions.setDraft(text)
-    actions.submit()
-  }
-}
-
-/**
  * 渲染隐身控制器: 挂载全局 keydown 捕获监听, 返回 null.
  * 所有状态经 ref 传递, 监听器只挂载一次, 无需随渲染重建.
  */
 export function KeymapController({ useSession, useInput, inputActions, sessionId, sessions, scope }: KeymapControllerProps) {
   const running = useSession((s: SessionSnapshot) => s.running) ?? false
+  const subagent = useSession((s: SessionSnapshot) => s.subagent) ?? null
   const input = useInput((s: InputState) => s)
-  const latest = useRef({ running, input, inputActions, sessionId, sessions })
-  latest.current = { running, input, inputActions, sessionId, sessions }
+  const latest = useRef({ running, subagent, input, inputActions, sessionId, sessions })
+  latest.current = { running, subagent, input, inputActions, sessionId, sessions }
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -154,13 +109,11 @@ export function KeymapController({ useSession, useInput, inputActions, sessionId
         case 'steer':
           event.preventDefault()
           event.stopImmediatePropagation()
-          void steerSend({
-            sessionId: state.sessionId,
-            running: state.running,
-            input: state.input,
-            actions: state.inputActions,
-            sessions: state.sessions,
-          })
+          // 空闲, 会话不支持插话, 或交棒失败时退回普通提交 (queue), 保证按键不落空.
+          // 三者的判据与 dsh 内置提交策略 resolveSubmitMode 对齐.
+          if (!state.running || !steeringAvailable(state.subagent) || !submitSteer({ sessions: state.sessions, sessionId: state.sessionId })) {
+            state.inputActions.submit()
+          }
           return
       }
     }
