@@ -6,7 +6,7 @@
  * 发送模式偏好经 settingsScope 与 Host 设置文档同步.
  */
 import type { Context } from '@deepseek-ai/cordis';
-/** 所需服务: slots 注册, sessions 会话解析, locale 字典, settingsScope 偏好. */
+/** 所需服务: slots 注册, sessions 会话解析, locale 字典, configForms 偏好. */
 export declare const inject: string[];
 /**
  * 组装键盘控制器与设置行.

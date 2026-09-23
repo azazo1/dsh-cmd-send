@@ -6,6 +6,7 @@
  * 发送模式偏好经 settingsScope 与 Host 设置文档同步.
  */
 import type { Context } from '@deepseek-ai/cordis'
+import type { ConfigForm } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
@@ -13,15 +14,14 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
-import { SETTINGS_NAMESPACE } from '../shared.ts'
+import { SETTINGS_NAMESPACE, type CmdSendSettings } from '../shared.ts'
 import { NS, en, zh } from './locales.ts'
 import { KeymapController } from './controller.tsx'
 import { SendModeRow } from './settings-row.tsx'
 import { adoptStyles } from './styles.ts'
-import { decodeCmdSend } from './settings.ts'
 
-/** 所需服务: slots 注册, sessions 会话解析, locale 字典, settingsScope 偏好. */
-export const inject = ['slots', 'sessions', 'locale', 'settingsScope']
+/** 所需服务: slots 注册, sessions 会话解析, locale 字典, configForms 偏好. */
+export const inject = ['slots', 'sessions', 'locale', 'configForms']
 
 /**
  * 组装键盘控制器与设置行.
@@ -29,10 +29,7 @@ export const inject = ['slots', 'sessions', 'locale', 'settingsScope']
  */
 export function apply(ctx: Context): void {
   adoptStyles()
-  const scope = ctx.settingsScope.bind({
-    namespace: SETTINGS_NAMESPACE,
-    decode: decodeCmdSend,
-  })
+  const scope = ctx.configForms.get<CmdSendSettings>(SETTINGS_NAMESPACE)
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-cmd-send: dictionaries')
 
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({

@@ -5,7 +5,6 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import type {} from '@deepseek-ai/dsh-settings'
 import {
   DEFAULT_SEND_MODE,
   SEND_MODE_FIELD,
@@ -18,16 +17,12 @@ import {
 export const name = 'dsh-cmd-send'
 
 /** dsh-cmd-send 设置 schema: 发送快捷键模式, 默认保持内置键位. */
-export const CmdSendSettingsSchema: z<CmdSendSettings> = z.object({
-  [SEND_MODE_FIELD]: z.union([...SEND_MODES]).default(DEFAULT_SEND_MODE),
+export const Config = z.object({
+  [SEND_MODE_FIELD]: z.union([...SEND_MODES]).default(DEFAULT_SEND_MODE).volatile(),
 })
 
 /**
- * 注册 dsh-cmd-send 设置命名空间.
+ * Host 半区无运行时副作用, 设置由 Config 投影.
  * @param ctx - host cordis context.
  */
-export function apply(ctx: Context): void {
-  ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.register(SETTINGS_NAMESPACE, CmdSendSettingsSchema)
-  })
-}
+export function apply(_ctx: Context): void {}

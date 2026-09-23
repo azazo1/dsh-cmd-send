@@ -3,9 +3,9 @@
  * 偏好经 settingsScope 写入 Host 设置文档, 由设置行与键盘控制器共享.
  */
 import { useSyncExternalStore, useState } from 'react'
-import { IconChevronDownOutline14, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconChevronDownOutlineMedium, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { ConfigForm as SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { DEFAULT_SEND_MODE, SEND_MODE_FIELD, type CmdSendSettings, type SendMode } from '../shared.ts'
 import type { CmdSendKey } from './locales.ts'
 
@@ -64,7 +64,7 @@ export function SendModeRow({ scope, t }: SendModeRowProps) {
             onClick={() => setOpen((value) => !value)}
           >
             {t(selectedLabel)}
-            <IconChevronDownOutline14 className="dsh-cmd-send-chevron" />
+            <IconChevronDownOutlineMedium className="dsh-cmd-send-chevron" />
           </button>
         )}
       />
