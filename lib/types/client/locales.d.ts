@@ -1,27 +1,22 @@
-/**
- * `dsh-cmd-send` locale 命名空间: 设置行文案. 中文为基准文案, 英文镜像.
- */
-/** 简体中文字典 (key 集合的唯一来源). */
-export declare const zh: {
-    'settings.sendMode.title': string;
-    'settings.sendMode.description': string;
-    'settings.sendMode.enter': string;
-    'settings.sendMode.cmdEnter': string;
-};
-/** `dsh-cmd-send` 命名空间 key 联合. */
-export type CmdSendKey = keyof typeof zh;
+/** `dsh-cmd-send` 插件页配置卡片的文案. */
+import type { SettingsFormLabels } from '@deepseek-ai/dsh-client-ui-primitives';
+/** 本插件字典的命名空间, 与包名一致. */
+export declare const NS = "dsh-cmd-send";
+/** 本插件用到的文案键. */
+export type CmdSendKey = 'description' | 'sendMode' | 'sendModeHint' | 'enter' | 'cmdEnter' | 'overridden' | 'reset' | 'readOnly' | 'unavailable' | 'save' | 'saving' | 'saveFailed';
 declare module '@deepseek-ai/dsh-client-ui-slots' {
     interface LocaleNamespaceMap {
-        /** 发送快捷键设置行的文案. */
+        /** 本插件配置卡片的文案. */
         'dsh-cmd-send': CmdSendKey;
     }
 }
-/** 英文词典, 与 zh key 集合完全对齐. */
-export declare const en: {
-    'settings.sendMode.title': string;
-    'settings.sendMode.description': string;
-    'settings.sendMode.enter': string;
-    'settings.sendMode.cmdEnter': string;
-};
-/** Locale 命名空间 id, 注册于 ctx.locale. */
-export declare const NS = "dsh-cmd-send";
+/** English copy. */
+export declare const en: Record<CmdSendKey, string>;
+/** Simplified Chinese copy. */
+export declare const zh: Record<CmdSendKey, string>;
+/**
+ * 表单框架要的文案, 从本插件字典取.
+ * @param t - 本插件字典的读取函数.
+ * @returns 共享设置表单渲染的标签.
+ */
+export declare function formLabels(t: (key: CmdSendKey) => string): SettingsFormLabels;
