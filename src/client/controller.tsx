@@ -4,6 +4,8 @@
  * 实现 Cmd+Enter 发送 / Shift+Cmd+Enter 插话 / Enter 换行的键位映射.
  * 候选菜单 (/, @ 补全) 高亮着候选时, 不带修饰的 Enter 交还菜单 (选中候选);
  * Cmd/Ctrl+Enter 始终是发送手势, 菜单开着也照发当前草稿.
+ * ask 提问卡片接管 composer 座位时, 卡片里的回答框按同一份模式接管 Enter
+ * (裸 Enter 换行, Cmd/Ctrl+Enter 继续/提交), 见 ask-field.ts.
  * 仅在设置开启 cmd-enter 模式时生效, 其余情况完全放行内置逻辑.
  */
 import { useEffect, useRef } from 'react'
@@ -13,6 +15,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type { ISessions, SessionSnapshot } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { ConfigForm as SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { DEFAULT_SEND_MODE, type CmdSendSettings } from '../shared.ts'
+import { decideAskAnswerKey, isAskAnswerField } from './ask-field.ts'
 import { decideKey, hasContent } from './keymap.ts'
 import { steeringAvailable, submitSteer } from './steer.ts'
 
@@ -51,17 +54,21 @@ export function hasHighlightedCandidate(target: EventTarget | null): boolean {
 }
 
 /**
- * 把这次 Enter 伪装成 Shift+Enter, 让 Lexical 走内置换行而不是提交.
- * @returns 是否成功改写了 shiftKey.
+ * 改写这次按键的 shiftKey 视图, 让下游处理器 (Lexical 的 KEY_ENTER_COMMAND,
+ * React 的 onKeyDown) 看到期望的修饰键状态. 事件对象本身不可变, 因此用
+ * getter 覆盖属性; 覆盖失败时返回 false, 由调用方决定退路.
+ * @param event - 正在派发的键盘事件.
+ * @param shiftKey - 想让下游看到的 shiftKey.
+ * @returns 是否成功改写.
  */
-export function markEnterAsLineBreak(event: KeyboardEvent): boolean {
+export function rewriteShiftKey(event: KeyboardEvent, shiftKey: boolean): boolean {
   try {
     Object.defineProperty(event, 'shiftKey', {
       configurable: true,
       enumerable: true,
-      get: () => true,
+      get: () => shiftKey,
     })
-    return event.shiftKey === true
+    return event.shiftKey === shiftKey
   } catch {
     return false
   }
@@ -80,10 +87,20 @@ export function KeymapController({ useSession, useInput, inputActions, sessionId
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
+      const mode = scope.getSnapshot().value?.sendMode ?? DEFAULT_SEND_MODE
+      // ask 提问卡片接管 composer 座位时, 主 composer 只是被隐藏而仍挂载;
+      // 卡片里的回答框是普通 textarea, 按同一份发送模式接管它的 Enter.
+      if (isAskAnswerField(event.target)) {
+        const ask = decideAskAnswerKey(event, mode)
+        // 换行: 伪装成 Shift+Enter, 由浏览器原生插入换行并触发卡片自己的
+        // onChange; 继续/提交: 抹掉 Shift 后放行, 交给卡片自带的处理器.
+        if (ask.kind === 'newline') rewriteShiftKey(event, true)
+        else if (ask.kind === 'submit') rewriteShiftKey(event, false)
+        return
+      }
       if (!isComposerInput(event.target)) return
       const state = latest.current
       if (state.input === undefined || state.inputActions === undefined) return
-      const mode = scope.getSnapshot().value?.sendMode ?? DEFAULT_SEND_MODE
       const decision = decideKey(event, {
         mode,
         phase: state.input.phase,
@@ -95,7 +112,7 @@ export function KeymapController({ useSession, useInput, inputActions, sessionId
           return
         case 'newline':
           // Lexical 的 KEY_ENTER 在 shiftKey 时直接交给 plain-text 换行.
-          if (!markEnterAsLineBreak(event)) {
+          if (!rewriteShiftKey(event, true)) {
             event.preventDefault()
             event.stopImmediatePropagation()
             document.execCommand('insertLineBreak')

@@ -7,7 +7,8 @@ Requires dsh `>=0.1.5-rc.1`.
 
 ## Keymap
 
-Switch **Send shortcut** to **Cmd+Enter to send** in Settings -> General:
+Switch **Send shortcut** to **Cmd+Enter to send** on the `dsh-cmd-send` card of
+the sidebar's **Plugins** page:
 
 | Key | Idle | Busy |
 | --- | --- | --- |
@@ -25,6 +26,13 @@ Switch **Send shortcut** to **Cmd+Enter to send** in Settings -> General:
   breaking the line. Cmd/Ctrl+Enter stays the send gesture and bypasses the
   menu, so a draft that starts with `/` can always be sent as typed (typing a
   full `/skill-name` and pressing Cmd/Ctrl+Enter sends it right away).
+- When the agent asks with `ask_user_question`, the answer field in that card
+  follows the same setting: plain Enter breaks the line, Cmd/Ctrl+Enter moves on
+  or submits the answer. The answer field has no steer channel, so
+  Shift+Cmd/Ctrl+Enter falls back to the same continue/submit gesture, while
+  Shift+Enter still breaks the line. The option buttons in the card are
+  untouched: Enter stays their own activation gesture (pick the option, and
+  submit once every question is answered).
 - IME composition is untouched: the Enter that confirms a candidate never
   sends.
 - dsh also has a built-in **Enter behavior while busy** row. This plugin's
@@ -71,5 +79,14 @@ dsh plugin --profile web remove dsh-cmd-send
   passes the bare Enter back to the built-in menu arbitration whenever a
   candidate is highlighted. Cmd/Ctrl+Enter is never passed back: it always
   sends.
-- The send preference persists through the host `settings` service
-  (`dsh-cmd-send.sendMode`); the row registers on `settings.general.item`.
+- An `ask_user_question` card takes over the composer seat while the main
+  composer stays mounted but hidden, and the card's answer field is a plain
+  textarea rather than the Lexical composer. The controller therefore also
+  recognizes the textarea inside the card root (`[data-question-key]`): plain
+  Enter is rewritten as Shift+Enter so the browser inserts the line break
+  natively, and Cmd/Ctrl+Enter is passed through with Shift cleared, handing the
+  gesture to the card's own handler that advances or submits the answer. The
+  card's option buttons and the plan review panel keep their native keys.
+- The send preference lives in the volatile Config of the `dsh-cmd-send` profile
+  entry, edited by the plugin page card (`plugins.bundle.config`), and is only
+  written back to the profile's patch layer on save.

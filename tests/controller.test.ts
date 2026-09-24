@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it } from 'vitest'
-import { hasHighlightedCandidate, isComposerInput, markEnterAsLineBreak } from '../src/client/controller.tsx'
+import { hasHighlightedCandidate, isComposerInput, rewriteShiftKey } from '../src/client/controller.tsx'
 
 /** 搭一个 composer 卡片, 按需在其中放候选菜单 (可带高亮项). */
 function composerCard(options: { menu: boolean; highlight: boolean } = { menu: false, highlight: false }): HTMLElement {
@@ -60,11 +60,18 @@ describe('hasHighlightedCandidate', () => {
   })
 })
 
-describe('markEnterAsLineBreak', () => {
+describe('rewriteShiftKey', () => {
   it('把 Enter 伪装成 Shift+Enter', () => {
     const event = new KeyboardEvent('keydown', { key: 'Enter', shiftKey: false })
     expect(event.shiftKey).toBe(false)
-    expect(markEnterAsLineBreak(event)).toBe(true)
+    expect(rewriteShiftKey(event, true)).toBe(true)
     expect(event.shiftKey).toBe(true)
+  })
+
+  it('也能抹掉 Shift (Shift+Cmd+Enter 走继续/提交)', () => {
+    const event = new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, metaKey: true })
+    expect(rewriteShiftKey(event, false)).toBe(true)
+    expect(event.shiftKey).toBe(false)
+    expect(event.metaKey).toBe(true)
   })
 })

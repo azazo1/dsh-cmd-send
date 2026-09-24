@@ -21,10 +21,14 @@ export declare function isComposerInput(target: EventTarget | null): boolean;
  */
 export declare function hasHighlightedCandidate(target: EventTarget | null): boolean;
 /**
- * 把这次 Enter 伪装成 Shift+Enter, 让 Lexical 走内置换行而不是提交.
- * @returns 是否成功改写了 shiftKey.
+ * 改写这次按键的 shiftKey 视图, 让下游处理器 (Lexical 的 KEY_ENTER_COMMAND,
+ * React 的 onKeyDown) 看到期望的修饰键状态. 事件对象本身不可变, 因此用
+ * getter 覆盖属性; 覆盖失败时返回 false, 由调用方决定退路.
+ * @param event - 正在派发的键盘事件.
+ * @param shiftKey - 想让下游看到的 shiftKey.
+ * @returns 是否成功改写.
  */
-export declare function markEnterAsLineBreak(event: KeyboardEvent): boolean;
+export declare function rewriteShiftKey(event: KeyboardEvent, shiftKey: boolean): boolean;
 /**
  * 渲染隐身控制器: 挂载全局 keydown 捕获监听, 返回 null.
  * 所有状态经 ref 传递, 监听器只挂载一次, 无需随渲染重建.
