@@ -3,7 +3,7 @@
 让 DeepSeek Harness Web 界面支持 Cmd+Enter 发送消息: Enter 只换行,
 Cmd+Enter 排队发送, Shift+Cmd+Enter 插话发送.
 
-需要 dsh `>=0.1.5-rc.1`.
+需要 dsh `>=0.1.7-rc.2`.
 
 ## 键位
 
@@ -37,15 +37,26 @@ Cmd+Enter 排队发送, Shift+Cmd+Enter 插话发送.
 
 ## 安装
 
-把插件加入 web profile:
+Web 端装进 `web` profile:
 
 ```shell
 dsh plugin --profile web add azazo1/dsh-cmd-send
 dsh plugin --profile web add azazo1/dsh-cmd-send#v0.1.3
 ```
 
-重启 web 服务器后刷新页面. 主机插件挂载在 `dsh-cmd-send`; 客户端 bundle 由
-`/plugins/dsh-cmd-send/client.js` 提供.
+装完重启 `dsh web`, 浏览器里刷新一次页面. 主机插件挂载在 `dsh-cmd-send`;
+客户端 bundle 由 `/plugins/dsh-cmd-send/client.js` 提供.
+
+桌面端装进 `desktop` profile. 它由 Electron 应用独占管理, `dsh plugin` 会拒绝
+`--profile desktop`, 所以要用应用内的插件管理器: 在插件页的安装入口填上面命令里
+对应的包名或本地目录. 装上后重启应用, 窗口刷新一次.
+
+引擎版本线要求 `@deepseek-ai/dsh-*` 不低于 `0.1.7-rc.2`, 且仍在 `0.1.x` 上
+(peerDependencies 与 devDependencies 都写作 `>=0.1.7-rc.2 <0.2.0`). 更早的引擎线
+装不上这个版本.
+
+web 与 desktop 两个 profile 跑的是同一套 Web 应用, 桌面端只是多起一个 Host 子进程
+并给 `<html>` 打上平台标记, 所以同一份包在两边通用, 不需要分别构建.
 
 ## 卸载
 

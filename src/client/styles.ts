@@ -3,6 +3,8 @@
  *
  * 官方 SettingsForm 的字段只覆盖文本与数字, 选择字段由本插件的 ChoiceField 自绘,
  * 尺寸与间距对齐官方 fields.module.css, 颜色只用 --dsw-alias-* 语义 token.
+ * 选择器的聚焦描边自 0.1.7-rc.2 起跟随官方焦点环基准, 用
+ * --dsw-alias-state-business-primary 而不是 --dsw-alias-brand-primary.
  */
 const STYLE_ID = 'dsh-cmd-send-styles'
 
@@ -73,7 +75,7 @@ const css = `
   background: var(--dsw-alias-interactive-bg-hover);
 }
 .dsh-cmd-send-selector:focus-visible {
-  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline: 2px solid var(--dsw-alias-state-business-primary);
   outline-offset: 1px;
 }
 .dsh-cmd-send-selector:disabled {
