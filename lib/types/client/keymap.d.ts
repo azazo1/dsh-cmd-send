@@ -40,7 +40,17 @@ export interface DecideInput {
      * 而 Cmd/Ctrl+Enter 始终是插件的发送手势, 会绕过菜单直接发送当前草稿.
      */
     candidateHighlight: boolean;
+    /**
+     * Windows/Linux 为 true: 把 Alt 当成发送修饰键.
+     * macOS 为 false / 缺省: Option+Enter 继续放行.
+     */
+    altAsSend?: boolean;
 }
+/**
+ * Windows / Linux 把 Alt 当发送修饰键; macOS / iOS 的 Option 不抢.
+ * `platform` 来自 `navigator.userAgentData.platform` 或 `navigator.platform`.
+ */
+export declare function isAltSendPlatform(platform: string): boolean;
 /**
  * 决定 composer 上的一次 Enter 按键应如何处理.
  * 仅在 cmd-enter 模式下拦截; 其他情况一律放行内置逻辑.
