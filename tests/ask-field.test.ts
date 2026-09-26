@@ -63,9 +63,16 @@ describe('decideAskAnswerKey', () => {
     expect(decideAskAnswerKey(enter({ metaKey: true, shiftKey: true }), 'cmd-enter')).toEqual({ kind: 'submit' })
   })
 
-  it('Shift+Enter 与 Alt+Enter 保持内置行为', () => {
+  it('Shift+Enter 与 macOS Option+Enter 保持内置行为', () => {
     expect(decideAskAnswerKey(enter({ shiftKey: true }), 'cmd-enter')).toEqual({ kind: 'pass' })
     expect(decideAskAnswerKey(enter({ altKey: true }), 'cmd-enter')).toEqual({ kind: 'pass' })
+  })
+
+  it('Windows/Linux 上 Alt+Enter 继续或提交', () => {
+    expect(decideAskAnswerKey(enter({ altKey: true }), 'cmd-enter', true)).toEqual({ kind: 'submit' })
+    expect(decideAskAnswerKey(enter({ altKey: true, shiftKey: true }), 'cmd-enter', true)).toEqual({
+      kind: 'submit',
+    })
   })
 
   it('IME 组合输入放行', () => {

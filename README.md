@@ -1,7 +1,8 @@
 # dsh-cmd-send
 
 Send messages with Cmd+Enter in the DeepSeek Harness web GUI: Enter inserts a
-newline, Cmd+Enter queues, Shift+Cmd+Enter steers.
+newline, Cmd+Enter queues, Shift+Cmd+Enter steers. Windows/Linux also support
+Alt+Enter / Alt+Shift+Enter.
 
 Requires dsh `>=0.1.7-rc.2`.
 
@@ -15,6 +16,8 @@ the sidebar's **Plugins** page:
 | Enter | newline | newline |
 | Cmd/Ctrl+Enter | send | queue |
 | Shift+Cmd/Ctrl+Enter | send | steer |
+| Alt+Enter (Windows/Linux) | send | queue |
+| Alt+Shift+Enter (Windows/Linux) | send | steer |
 | Shift+Enter | newline | newline |
 
 - Busy means the agent is running; queued messages execute in FIFO order after
@@ -30,7 +33,8 @@ the sidebar's **Plugins** page:
   follows the same setting: plain Enter breaks the line, Cmd/Ctrl+Enter moves on
   or submits the answer. The answer field has no steer channel, so
   Shift+Cmd/Ctrl+Enter falls back to the same continue/submit gesture, while
-  Shift+Enter still breaks the line. The option buttons in the card are
+  Shift+Enter still breaks the line. Windows/Linux Alt+Enter /
+  Alt+Shift+Enter also continue or submit. The option buttons in the card are
   untouched: Enter stays their own activation gesture (pick the option, and
   submit once every question is answered).
 - IME composition is untouched: the Enter that confirms a candidate never

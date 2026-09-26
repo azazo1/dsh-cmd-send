@@ -1,7 +1,8 @@
 # dsh-cmd-send
 
 让 DeepSeek Harness Web 界面支持 Cmd+Enter 发送消息: Enter 只换行,
-Cmd+Enter 排队发送, Shift+Cmd+Enter 插话发送.
+Cmd+Enter 排队发送, Shift+Cmd+Enter 插话发送. Windows/Linux 也可用
+Alt+Enter / Alt+Shift+Enter.
 
 需要 dsh `>=0.1.7-rc.2`.
 
@@ -15,6 +16,8 @@ Cmd+Enter 排队发送, Shift+Cmd+Enter 插话发送.
 | Enter | 换行 | 换行 |
 | Cmd/Ctrl+Enter | 发送 | 插入排队 |
 | Shift+Cmd/Ctrl+Enter | 发送 | 插话发送 (steer) |
+| Alt+Enter (Windows/Linux) | 发送 | 插入排队 |
+| Alt+Shift+Enter (Windows/Linux) | 发送 | 插话发送 (steer) |
 | Shift+Enter | 换行 | 换行 |
 
 - 忙碌指智能体正在运行; 排队消息会在当前回合结束后按 FIFO 依次执行.
@@ -26,9 +29,9 @@ Cmd+Enter 排队发送, Shift+Cmd+Enter 插话发送.
   Cmd/Ctrl+Enter 就发出去了 (技能由 Host 侧识别, 不必先按菜单选中).
 - 智能体用 `ask_user_question` 提问时, 卡片里的回答框跟随同一份设置: 裸 Enter
   换行, Cmd/Ctrl+Enter 继续或提交答案. 回答框没有插话通道, 所以
-  Shift+Cmd/Ctrl+Enter 也退回继续/提交, Shift+Enter 仍是换行. 卡片上的选项
-  按钮不受影响, Enter 依旧是按钮自身的激活手势 (选中该项, 所有问题都答完时
-  直接提交).
+  Shift+Cmd/Ctrl+Enter 也退回继续/提交, Shift+Enter 仍是换行. Windows/Linux
+  的 Alt+Enter / Alt+Shift+Enter 同样继续或提交. 卡片上的选项按钮不受影响,
+  Enter 依旧是按钮自身的激活手势 (选中该项, 所有问题都答完时直接提交).
 - 中文输入法组合输入不受影响, 确认候选词的 Enter 不会误发送.
 - dsh 另外有内置的 **繁忙时 Enter 键行为**. 本插件切到 Cmd+Enter 模式后会接管
   普通 Enter, 因此该内置项只在本插件保持 **Enter 发送** 时生效.

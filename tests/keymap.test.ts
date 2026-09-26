@@ -1,11 +1,12 @@
 /** keymap 决策函数单元测试: 覆盖 Cmd+Enter 模式下的键位映射与边界. */
 import { describe, expect, it } from 'vitest'
 import type { DraftAttachmentId } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import { decideKey, hasContent, type DecideInput, type KeyEventLike } from '../src/client/keymap.ts'
+import { decideKey, hasContent, isAltSendPlatform, type DecideInput, type KeyEventLike } from '../src/client/keymap.ts'
 
 const CMD_ENTER: DecideInput = { mode: 'cmd-enter', phase: 'plain', content: true, candidateHighlight: false }
 const CMD_ENTER_EMPTY: DecideInput = { mode: 'cmd-enter', phase: 'plain', content: false, candidateHighlight: false }
 const CMD_ENTER_CANDIDATE: DecideInput = { mode: 'cmd-enter', phase: 'plain', content: true, candidateHighlight: true }
+const CMD_ENTER_ALT: DecideInput = { mode: 'cmd-enter', phase: 'plain', content: true, candidateHighlight: false, altAsSend: true }
 const DEFAULT: DecideInput = { mode: 'enter', phase: 'plain', content: true, candidateHighlight: false }
 
 function enter(overrides: Partial<KeyEventLike> = {}): KeyEventLike {
@@ -39,8 +40,8 @@ describe('decideKey', () => {
 
   it('提交交易进行中放行', () => {
     for (const phase of ['adjudicating', 'submitting'] as const) {
-      expect(decideKey(enter(), { mode: 'cmd-enter', phase, content: true })).toEqual({ kind: 'pass' })
-      expect(decideKey(enter({ metaKey: true }), { mode: 'cmd-enter', phase, content: true })).toEqual({ kind: 'pass' })
+      expect(decideKey(enter(), { mode: 'cmd-enter', phase, content: true, candidateHighlight: false })).toEqual({ kind: 'pass' })
+      expect(decideKey(enter({ metaKey: true }), { mode: 'cmd-enter', phase, content: true, candidateHighlight: false })).toEqual({ kind: 'pass' })
     }
   })
 
@@ -48,9 +49,10 @@ describe('decideKey', () => {
     expect(decideKey(enter(), CMD_ENTER)).toEqual({ kind: 'newline' })
   })
 
-  it('Shift+Enter 与 Alt+Enter 放行 (内置换行/其他)', () => {
+  it('Shift+Enter 与 macOS Option+Enter 放行 (内置换行/其他)', () => {
     expect(decideKey(enter({ shiftKey: true }), CMD_ENTER)).toEqual({ kind: 'pass' })
     expect(decideKey(enter({ altKey: true }), CMD_ENTER)).toEqual({ kind: 'pass' })
+    expect(decideKey(enter({ altKey: true, shiftKey: true }), CMD_ENTER)).toEqual({ kind: 'pass' })
   })
 
   it('命令候选菜单打开时 Enter 放行 (菜单消费)', () => {
@@ -94,6 +96,58 @@ describe('decideKey', () => {
 
   it('长按普通 Enter 仍换行', () => {
     expect(decideKey(enter({ repeat: true }), CMD_ENTER)).toEqual({ kind: 'newline' })
+  })
+
+  it('altAsSend 时 Ctrl/Cmd 系与普通 Enter 保持原样', () => {
+    expect(decideKey(enter({ ctrlKey: true }), CMD_ENTER_ALT)).toEqual({ kind: 'send' })
+    expect(decideKey(enter({ metaKey: true }), CMD_ENTER_ALT)).toEqual({ kind: 'send' })
+    expect(decideKey(enter({ shiftKey: true }), CMD_ENTER_ALT)).toEqual({ kind: 'pass' })
+    expect(decideKey(enter(), CMD_ENTER_ALT)).toEqual({ kind: 'newline' })
+  })
+
+  it('Windows/Linux 上 Alt+Enter 发送', () => {
+    expect(decideKey(enter({ altKey: true }), CMD_ENTER_ALT)).toEqual({ kind: 'send' })
+  })
+
+  it('Windows/Linux 上 Alt+Shift+Enter 插话', () => {
+    expect(decideKey(enter({ altKey: true, shiftKey: true }), CMD_ENTER_ALT)).toEqual({ kind: 'steer' })
+  })
+
+  it('Windows/Linux 上长按 Alt+Enter 放行, 避免连发', () => {
+    expect(decideKey(enter({ altKey: true, repeat: true }), CMD_ENTER_ALT)).toEqual({ kind: 'pass' })
+    expect(decideKey(enter({ altKey: true, shiftKey: true, repeat: true }), CMD_ENTER_ALT)).toEqual({
+      kind: 'pass',
+    })
+  })
+
+  it('草稿为空时 Alt+Enter 也放行', () => {
+    expect(decideKey(enter({ altKey: true }), { ...CMD_ENTER_EMPTY, altAsSend: true })).toEqual({ kind: 'pass' })
+  })
+
+  it('候选菜单高亮时 Alt+Enter 仍发送', () => {
+    expect(decideKey(enter({ altKey: true }), { ...CMD_ENTER_CANDIDATE, altAsSend: true })).toEqual({ kind: 'send' })
+    expect(decideKey(enter({ altKey: true, shiftKey: true }), { ...CMD_ENTER_CANDIDATE, altAsSend: true })).toEqual({
+      kind: 'steer',
+    })
+  })
+
+  it('isAltSendPlatform 识别 Windows/Linux, 排除 Apple', () => {
+    expect(isAltSendPlatform('Win32')).toBe(true)
+    expect(isAltSendPlatform('Windows')).toBe(true)
+    expect(isAltSendPlatform('Linux x86_64')).toBe(true)
+    expect(isAltSendPlatform('Linux')).toBe(true)
+    expect(isAltSendPlatform('MacIntel')).toBe(false)
+    expect(isAltSendPlatform('MacARM64')).toBe(false)
+    expect(isAltSendPlatform('macOS')).toBe(false)
+    expect(isAltSendPlatform('iPhone')).toBe(false)
+    expect(isAltSendPlatform('iPad')).toBe(false)
+  })
+
+  it('enter 模式下即使 altAsSend 也全部放行', () => {
+    expect(decideKey(enter({ altKey: true }), { ...DEFAULT, altAsSend: true })).toEqual({ kind: 'pass' })
+    expect(decideKey(enter({ altKey: true, shiftKey: true }), { ...DEFAULT, altAsSend: true })).toEqual({
+      kind: 'pass',
+    })
   })
 })
 

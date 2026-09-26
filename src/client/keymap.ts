@@ -29,8 +29,8 @@ export interface KeyEventLike {
 export type KeyDecision =
   | { kind: 'pass' } // 放行内置处理 (默认 Enter 发送 / 菜单选择 / IME 组合等)
   | { kind: 'newline' } // Enter 换行: 伪装成 Shift+Enter, 走 Lexical 内置换行
-  | { kind: 'send' } // Cmd/Ctrl+Enter: 发送; 忙碌时 Host 自然插入排队
-  | { kind: 'steer' } // Shift+Cmd/Ctrl+Enter: 忙碌时插话发送, 空闲时普通发送
+  | { kind: 'send' } // Cmd/Ctrl+Enter, 以及 Windows/Linux 的 Alt+Enter: 发送; 忙碌时 Host 自然插入排队
+  | { kind: 'steer' } // Shift+Cmd/Ctrl+Enter, 以及 Windows/Linux 的 Alt+Shift+Enter: 忙碌时插话, 空闲时普通发送
 
 /** 决策所需的输入状态. */
 export interface DecideInput {
@@ -44,6 +44,19 @@ export interface DecideInput {
    * 而 Cmd/Ctrl+Enter 始终是插件的发送手势, 会绕过菜单直接发送当前草稿.
    */
   candidateHighlight: boolean
+  /**
+   * Windows/Linux 为 true: 把 Alt 当成发送修饰键.
+   * macOS 为 false / 缺省: Option+Enter 继续放行.
+   */
+  altAsSend?: boolean
+}
+
+/**
+ * Windows / Linux 把 Alt 当发送修饰键; macOS / iOS 的 Option 不抢.
+ * `platform` 来自 `navigator.userAgentData.platform` 或 `navigator.platform`.
+ */
+export function isAltSendPlatform(platform: string): boolean {
+  return !/mac|iphone|ipad|ipod/i.test(platform)
 }
 
 /**
@@ -57,17 +70,17 @@ export function decideKey(event: KeyEventLike, input: DecideInput): KeyDecision 
   if (input.mode !== 'cmd-enter') return { kind: 'pass' }
   // 提交交易进行中: 内置逻辑本就会忽略 Enter, 无需插手.
   if (input.phase === 'adjudicating' || input.phase === 'submitting') return { kind: 'pass' }
-  const meta = event.metaKey || event.ctrlKey
+  const meta = event.metaKey || event.ctrlKey || (input.altAsSend === true && event.altKey)
   if (meta) {
-    // 发送手势优先于候选菜单: 菜单开着时 Cmd/Ctrl+Enter 也照样发送当前
+    // 发送手势优先于候选菜单: 菜单开着时 Cmd/Ctrl/Alt+Enter 也照样发送当前
     // 草稿 (按原样发, 不套用高亮候选), 这样 "/xxx" 这类开头的消息总有出路.
-    // 长按 Cmd/Ctrl+Enter 交给内置 keymap 吞掉, 避免连发.
+    // 长按 Cmd/Ctrl/Alt+Enter 交给内置 keymap 吞掉, 避免连发.
     if (event.repeat) return { kind: 'pass' }
     // 草稿为空且无附件: 没有可发送的内容, 交还内置逻辑.
     if (!input.content) return { kind: 'pass' }
     return event.shiftKey ? { kind: 'steer' } : { kind: 'send' }
   }
-  // Shift+Enter (内置换行) 与 Alt+Enter 保持原样.
+  // Shift+Enter (内置换行) 与 macOS Option+Enter 保持原样.
   if (event.shiftKey || event.altKey) return { kind: 'pass' }
   // 候选菜单 (/, @ 补全) 高亮着候选: 不带修饰的 Enter 是 "补全" 手势,
   // 交给菜单消费 (选中当前高亮候选), 而不是换行.

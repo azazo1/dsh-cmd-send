@@ -1,7 +1,8 @@
 /**
  * 键盘控制器: 挂在 conversation.input.dock (session 作用域) 的一个隐身条目,
  * 通过 document 捕获阶段拦截 composer (Lexical contenteditable) 上的 Enter,
- * 实现 Cmd+Enter 发送 / Shift+Cmd+Enter 插话 / Enter 换行的键位映射.
+ * 实现 Cmd+Enter 发送 / Shift+Cmd+Enter 插话 / Enter 换行的键位映射;
+ * Windows/Linux 另支持 Alt+Enter 发送 / Alt+Shift+Enter 插话.
  * 候选菜单 (/, @ 补全) 高亮着候选时, 不带修饰的 Enter 交还菜单 (选中候选);
  * Cmd/Ctrl+Enter 始终是发送手势, 菜单开着也照发当前草稿.
  * ask 提问卡片接管 composer 座位时, 卡片里的回答框按同一份模式接管 Enter
@@ -16,7 +17,7 @@ import type { ISessions, SessionSnapshot } from '@deepseek-ai/dsh-api-session-co
 import type { ConfigForm as SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { DEFAULT_SEND_MODE, type CmdSendSettings } from '../shared.ts'
 import { decideAskAnswerKey, isAskAnswerField } from './ask-field.ts'
-import { decideKey, hasContent } from './keymap.ts'
+import { decideKey, hasContent, isAltSendPlatform } from './keymap.ts'
 import { steeringAvailable, submitSteer } from './steer.ts'
 
 /** 控制器完整 props: dock slot 的运行时 props + sessions 服务 + 设置 scope. */
@@ -86,12 +87,14 @@ export function KeymapController({ useSession, useInput, inputActions, sessionId
   latest.current = { running, subagent, input, inputActions, sessionId, sessions }
 
   useEffect(() => {
+    const nav = navigator as Navigator & { userAgentData?: { platform?: string } }
+    const altAsSend = isAltSendPlatform(nav.userAgentData?.platform || nav.platform || nav.userAgent || '')
     const onKeyDown = (event: KeyboardEvent): void => {
       const mode = scope.getSnapshot().value?.sendMode ?? DEFAULT_SEND_MODE
       // ask 提问卡片接管 composer 座位时, 主 composer 只是被隐藏而仍挂载;
       // 卡片里的回答框是普通 textarea, 按同一份发送模式接管它的 Enter.
       if (isAskAnswerField(event.target)) {
-        const ask = decideAskAnswerKey(event, mode)
+        const ask = decideAskAnswerKey(event, mode, altAsSend)
         // 换行: 伪装成 Shift+Enter, 由浏览器原生插入换行并触发卡片自己的
         // onChange; 继续/提交: 抹掉 Shift 后放行, 交给卡片自带的处理器.
         if (ask.kind === 'newline') rewriteShiftKey(event, true)
@@ -106,6 +109,7 @@ export function KeymapController({ useSession, useInput, inputActions, sessionId
         phase: state.input.phase,
         content: hasContent(state.input),
         candidateHighlight: hasHighlightedCandidate(event.target),
+        altAsSend,
       })
       switch (decision.kind) {
         case 'pass':

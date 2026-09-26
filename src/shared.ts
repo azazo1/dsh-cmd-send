@@ -12,7 +12,8 @@ export const SEND_MODE_FIELD = 'sendMode'
 /**
  * 发送模式:
  * - enter: 保持 dsh 内置键位 (Enter 发送, Shift+Enter 换行, Cmd/Ctrl+Enter 插话);
- * - cmd-enter: Cmd+Enter 发送, Shift+Cmd+Enter 插话, Enter 只换行.
+ * - cmd-enter: Cmd+Enter 发送, Shift+Cmd+Enter 插话, Enter 只换行;
+ *   Windows/Linux 另支持 Alt+Enter 发送, Alt+Shift+Enter 插话.
  */
 export const SEND_MODES = ['enter', 'cmd-enter'] as const
 

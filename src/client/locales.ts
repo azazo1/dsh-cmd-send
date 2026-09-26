@@ -22,7 +22,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 export const en: Record<CmdSendKey, string> = {
   description: 'Choose whether Enter sends, or Cmd+Enter sends and Enter inserts a newline.',
   sendMode: 'Send shortcut',
-  sendModeHint: 'Cmd+Enter send: Enter inserts a newline, Cmd+Enter queues, Shift+Cmd+Enter steers.',
+  sendModeHint: 'Cmd+Enter send: Enter inserts a newline, Cmd/Ctrl+Enter queues, Shift+Cmd/Ctrl+Enter steers; Windows/Linux also support Alt+Enter / Alt+Shift+Enter.',
   enter: 'Enter to send',
   cmdEnter: 'Cmd+Enter to send',
   overridden: 'Overridden',
@@ -38,7 +38,7 @@ export const en: Record<CmdSendKey, string> = {
 export const zh: Record<CmdSendKey, string> = {
   description: '选择 Enter 直接发送, 还是 Cmd+Enter 发送而 Enter 只换行.',
   sendMode: '发送快捷键',
-  sendModeHint: 'Cmd+Enter 发送: Enter 只换行, Cmd+Enter 排队发送, Shift+Cmd+Enter 插话发送.',
+  sendModeHint: 'Cmd+Enter 发送: Enter 只换行, Cmd/Ctrl+Enter 排队发送, Shift+Cmd/Ctrl+Enter 插话发送; Windows/Linux 可用 Alt+Enter / Alt+Shift+Enter.',
   enter: 'Enter 发送',
   cmdEnter: 'Cmd+Enter 发送',
   overridden: '已覆盖',
