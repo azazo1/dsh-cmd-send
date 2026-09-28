@@ -4,7 +4,7 @@ Send messages with Cmd+Enter in the DeepSeek Harness web GUI: Enter inserts a
 newline, Cmd+Enter queues, Shift+Cmd+Enter steers. Windows/Linux also support
 Alt+Enter / Alt+Shift+Enter.
 
-Requires dsh `>=0.1.7-rc.2`.
+Requires dsh `>=0.2.0-rc.1 <0.3.0`.
 
 ## Keymap
 
@@ -64,9 +64,9 @@ The desktop app installs into the `desktop` profile, which it owns exclusively:
 put the package name from the command above (or a local directory) into its
 install field. Restart the app afterwards and refresh the window once.
 
-The engine line requires `@deepseek-ai/dsh-*` at `0.1.7-rc.2` or newer while
-staying on `0.1.x` (both `peerDependencies` and `devDependencies` use
-`>=0.1.7-rc.2 <0.2.0`). Earlier engine lines cannot install this version.
+The engine line requires `@deepseek-ai/dsh-*` at `0.2.0-rc.1` or newer while
+staying on `0.2.x` (both `peerDependencies` and `devDependencies` use
+`>=0.2.0-rc.1 <0.3.0`). Earlier engine lines cannot install this version.
 
 The `web` and `desktop` profiles run the same Web app; the desktop build only
 adds a Host child process and a platform marker on `<html>`, so the same package
