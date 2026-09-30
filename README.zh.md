@@ -27,6 +27,7 @@ Alt+Enter / Alt+Shift+Enter.
   Enter 是选中候选而不是换行. Cmd/Ctrl+Enter 始终是发送手势并绕过菜单, 因此
   以 `/` 开头的草稿总有出路: 直接把技能名打全 (`/skill-name`) 再按
   Cmd/Ctrl+Enter 就发出去了 (技能由 Host 侧识别, 不必先按菜单选中).
+  命令进入参数输入 (如 `/plan ` 之后) 时 Enter 同样换行, 参数可以写多行.
 - 智能体用 `ask_user_question` 提问时, 卡片里的回答框跟随同一份设置: 裸 Enter
   换行, Cmd/Ctrl+Enter 继续或提交答案. 回答框没有插话通道, 所以
   Shift+Cmd/Ctrl+Enter 也退回继续/提交, Shift+Enter 仍是换行. Windows/Linux

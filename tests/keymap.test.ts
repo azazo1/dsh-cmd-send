@@ -55,8 +55,11 @@ describe('decideKey', () => {
     expect(decideKey(enter({ altKey: true, shiftKey: true }), CMD_ENTER)).toEqual({ kind: 'pass' })
   })
 
-  it('命令候选菜单打开时 Enter 放行 (菜单消费)', () => {
-    expect(decideKey(enter(), { mode: 'cmd-enter', phase: 'claimed', content: true, candidateHighlight: false })).toEqual({ kind: 'pass' })
+  it('命令已 claim 时 Enter 换行, Cmd/Ctrl+Enter 才提交', () => {
+    const claimed: DecideInput = { mode: 'cmd-enter', phase: 'claimed', content: true, candidateHighlight: false }
+    expect(decideKey(enter(), claimed)).toEqual({ kind: 'newline' })
+    expect(decideKey(enter({ metaKey: true }), claimed)).toEqual({ kind: 'send' })
+    expect(decideKey(enter({ ctrlKey: true }), claimed)).toEqual({ kind: 'send' })
   })
 
   it('候选菜单高亮候选时 Enter 放行 (选中候选而不是换行)', () => {

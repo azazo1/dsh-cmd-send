@@ -28,7 +28,9 @@ the sidebar's **Plugins** page:
   candidate menu shows a highlighted row, Enter picks that candidate instead of
   breaking the line. Cmd/Ctrl+Enter stays the send gesture and bypasses the
   menu, so a draft that starts with `/` can always be sent as typed (typing a
-  full `/skill-name` and pressing Cmd/Ctrl+Enter sends it right away).
+  full `/skill-name` and pressing Cmd/Ctrl+Enter sends it right away). Once a
+  command takes arguments (after typing `/plan `, for example), Enter still
+  breaks the line, so arguments can span several lines.
 - When the agent asks with `ask_user_question`, the answer field in that card
   follows the same setting: plain Enter breaks the line, Cmd/Ctrl+Enter moves on
   or submits the answer. The answer field has no steer channel, so

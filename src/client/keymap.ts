@@ -85,7 +85,7 @@ export function decideKey(event: KeyEventLike, input: DecideInput): KeyDecision 
   // 候选菜单 (/, @ 补全) 高亮着候选: 不带修饰的 Enter 是 "补全" 手势,
   // 交给菜单消费 (选中当前高亮候选), 而不是换行.
   if (input.candidateHighlight) return { kind: 'pass' }
-  // 命令 token 已 claim (进入命令模式): Enter 由内置提交逻辑消费.
-  if (input.phase === 'claimed') return { kind: 'pass' }
+  // 命令 token 已 claim (如 "/plan " 敲空格后) 同样换行: 换行后草稿仍以 token
+  // 开头, claim 保持, 命令参数可以写多行, 由 Cmd/Ctrl+Enter 提交.
   return { kind: 'newline' }
 }
