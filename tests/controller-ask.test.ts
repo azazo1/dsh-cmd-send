@@ -6,6 +6,9 @@
  *
  * 校验两件事: 捕获阶段改写过的 shiftKey 确实能被卡片自己的 React 处理器看到
  * (整个机制的关键假设), 以及 cmd-enter 模式下裸 Enter 不再继续/提交.
+ *
+ * Windows/Linux 的 Alt+Enter 走同一条继续/提交, 平台判定来自控制器里的
+ * navigator.platform, 所以那组用例按平台覆写 navigator.platform.
  */
 import { afterEach, describe, expect, it } from 'vitest'
 import { act, createElement, type KeyboardEvent as ReactKeyboardEvent } from 'react'
@@ -19,6 +22,8 @@ import type { CmdSendSettings, SendMode } from '../src/shared.ts'
 interface Observed {
   /** 卡片处理器看到的 shiftKey. */
   shiftKey: boolean
+  /** 卡片处理器看到的 altKey (平台相关的用例用它确认插件没有吃掉按键). */
+  altKey: boolean
   /** 卡片处理器是否继续/提交 (preventDefault 并推进). */
   continued: boolean
 }
@@ -35,18 +40,38 @@ interface Harness {
 
 let harness: Harness | undefined
 
+/** 当前用例覆写的 navigator.platform, 用例结束恢复. */
+let platformRestore: (() => void) | undefined
+
 afterEach(() => {
   harness?.unmount()
   harness = undefined
+  platformRestore?.()
+  platformRestore = undefined
 })
+
+/**
+ * 覆写 navigator.platform, 供平台相关的用例挑选键位.
+ * 不调用时保持 jsdom 默认: platform 为空串, 控制器回落到含 `darwin` 的
+ * userAgent, 于是判定为非 Windows/Linux (与本机 macOS 行为一致).
+ */
+function setPlatform(platform: string): void {
+  const original = Object.getOwnPropertyDescriptor(Navigator.prototype, 'platform')
+  Object.defineProperty(navigator, 'platform', { configurable: true, get: () => platform })
+  platformRestore = () => {
+    if (original === undefined) Reflect.deleteProperty(navigator, 'platform')
+    else Object.defineProperty(navigator, 'platform', original)
+  }
+}
 
 /** 挂载控制器与一张最小提问卡片, 返回卡片里的回答框. */
 function mount(mode: SendMode): Harness {
-  const observed: Observed = { shiftKey: false, continued: false }
+  const observed: Observed = { shiftKey: false, altKey: false, continued: false }
   /** 与 dsh QuestionComposer 的 continueFromCustom 同构的回答框处理器. */
   const AnswerField = () => createElement('textarea', {
     onKeyDown: (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
       observed.shiftKey = event.shiftKey
+      observed.altKey = event.altKey
       observed.continued = false
       if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return
       event.preventDefault()
@@ -129,5 +154,47 @@ describe('ask 回答框的键位接线', () => {
     dispatchEnter(harness.field)
     expect(harness.observed.shiftKey).toBe(false)
     expect(harness.observed.continued).toBe(true)
+  })
+
+  it('Windows/Linux 上 Alt+Enter 与 Alt+Shift+Enter 都继续/提交', () => {
+    setPlatform('Win32')
+    harness = mount('cmd-enter')
+    dispatchEnter(harness.field, { altKey: true })
+    expect(harness.observed.shiftKey).toBe(false)
+    expect(harness.observed.continued).toBe(true)
+    // 回答框没有插话通道, 带 Shift 也退回继续/提交.
+    dispatchEnter(harness.field, { altKey: true, shiftKey: true })
+    expect(harness.observed.shiftKey).toBe(false)
+    expect(harness.observed.continued).toBe(true)
+  })
+
+  it('Windows/Linux 上 enter 模式不抢 Alt+Enter (仍按卡片自带逻辑)', () => {
+    setPlatform('Win32')
+    harness = mount('enter')
+    dispatchEnter(harness.field, { altKey: true })
+    expect(harness.observed.altKey).toBe(true)
+    expect(harness.observed.shiftKey).toBe(false)
+    expect(harness.observed.continued).toBe(true)
+  })
+
+  it('Linux 平台同样把 Alt+Enter 当继续/提交', () => {
+    setPlatform('Linux x86_64')
+    harness = mount('cmd-enter')
+    dispatchEnter(harness.field, { altKey: true, shiftKey: true })
+    expect(harness.observed.shiftKey).toBe(false)
+    expect(harness.observed.continued).toBe(true)
+  })
+
+  it('macOS 上 Option+Enter 不被插件改写, 由卡片自带逻辑消费', () => {
+    setPlatform('MacIntel')
+    harness = mount('cmd-enter')
+    dispatchEnter(harness.field, { altKey: true })
+    expect(harness.observed.shiftKey).toBe(false)
+    expect(harness.observed.continued).toBe(true)
+    // 与 Windows/Linux 的对照组: 带 Shift 时插件不抹 shiftKey, 换行走卡片
+    // 自带的 Shift+Enter 分支, 由此确认平台判定真的生效而不是全靠放行.
+    dispatchEnter(harness.field, { altKey: true, shiftKey: true })
+    expect(harness.observed.shiftKey).toBe(true)
+    expect(harness.observed.continued).toBe(false)
   })
 })

@@ -40,8 +40,8 @@ export interface DecideInput {
   content: boolean
   /**
    * 触发候选菜单 (/, @ 补全) 是否开着并高亮了一行.
-   * 只影响不带 Cmd/Ctrl 的 Enter: 那时 Enter 属于菜单 (选中当前候选),
-   * 而 Cmd/Ctrl+Enter 始终是插件的发送手势, 会绕过菜单直接发送当前草稿.
+   * 只影响不带发送修饰键的 Enter: 那时 Enter 属于菜单 (选中当前候选),
+   * 而 Cmd/Ctrl/Alt+Enter 始终是插件的发送手势, 会绕过菜单直接发送当前草稿.
    */
   candidateHighlight: boolean
   /**

@@ -10,6 +10,9 @@
  * 与主 composer 的差异: 回答框只有 "继续/提交" 一个动作, 没有插话通道, 因此
  * Cmd/Ctrl+Enter 系列一律是继续/提交 (Shift 不再区分), Windows/Linux 的
  * Alt+Enter 同样继续/提交, 而不带修饰的 Enter 在 cmd-enter 模式下改成换行.
+ * 卡片自带的处理器认的是 "裸 Enter 继续/提交, Shift+Enter 换行, Alt 不参与",
+ * 所以 Windows/Linux 的 Alt+Enter 需要抹掉 Shift 后才放行, 而 macOS 的
+ * Option+Enter 不归本插件管, 由卡片自己消费.
  */
 import type { SendMode } from '../shared.ts';
 import type { KeyEventLike } from './keymap.ts';
@@ -32,7 +35,7 @@ export declare function isAskAnswerField(target: EventTarget | null): boolean;
  * 只在 cmd-enter 模式下改动键位; enter 模式一律放行卡片自带逻辑.
  * @param event - 按键事件 (最小视图).
  * @param mode - 当前发送模式.
- * @param altAsSend - Windows/Linux 为 true 时把 Alt 当成发送修饰键.
+ * @param altAsSend - Windows/Linux 为 true 时把 Alt 当成发送修饰键 (与主 composer 同一判据).
  * @returns 处理结果.
  */
 export declare function decideAskAnswerKey(event: KeyEventLike, mode: SendMode, altAsSend?: boolean): AskAnswerDecision;
