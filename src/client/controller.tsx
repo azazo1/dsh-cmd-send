@@ -21,7 +21,8 @@ import { DEFAULT_SEND_MODE, type CmdSendSettings } from '../shared.ts'
 import { decideAskAnswerKey, isAskAnswerField } from './ask-field.ts'
 import { decideKey, hasContent, isAltSendPlatform } from './keymap.ts'
 import type { CmdSendKey } from './locales.ts'
-import { steeringAvailable, submitQueueItem, submitSteer } from './steer.ts'
+import { installQueueRelease } from './queue-release.ts'
+import { notifySession, steeringAvailable, submitQueueItem, submitSteer } from './steer.ts'
 
 /** 控制器完整 props: dock slot 的运行时 props + sessions 服务 + 设置 scope. */
 export type KeymapControllerProps = PropsRuntime<'conversation.input.dock'> & {
@@ -94,6 +95,20 @@ export function KeymapController({ useSession, useInput, inputActions, sessionId
   useEffect(() => {
     const nav = navigator as Navigator & { userAgentData?: { platform?: string } }
     const altAsSend = isAltSendPlatform(nav.userAgentData?.platform || nav.platform || nav.userAgent || '')
+    // 队列条增强: 中断后停住的排队消息, 空闲时也能从队列条上发出去. 运行中原样
+    // 放行 (内置插话). 它的运行状态从 ref 里读, 因此监听器不需要重建.
+    const disposeQueueRelease = installQueueRelease({
+      sessionId,
+      isRunning: () => latest.current.running,
+      // 原生列表按 InputState.queue 的顺序渲染, 非回声行的第 n 行就是 queue[n].
+      itemIdAt: (index) => {
+        const queued = latest.current.input?.queue[index]
+        return queued === undefined ? undefined : String(queued.id)
+      },
+      notify: (text) => {
+        notifySession({ sessions: latest.current.sessions, sessionId: latest.current.sessionId }, text)
+      },
+    })
     const onKeyDown = (event: KeyboardEvent): void => {
       const mode = scope.getSnapshot().value?.sendMode ?? DEFAULT_SEND_MODE
       // ask 提问卡片接管 composer 座位时, 主 composer 只是被隐藏而仍挂载;
@@ -161,7 +176,10 @@ export function KeymapController({ useSession, useInput, inputActions, sessionId
       }
     }
     document.addEventListener('keydown', onKeyDown, true)
-    return () => document.removeEventListener('keydown', onKeyDown, true)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown, true)
+      disposeQueueRelease()
+    }
   }, [scope])
 
   return null

@@ -59,6 +59,28 @@ export interface QueueSteerDeps extends SteerSubmitDeps {
 }
 
 /**
+ * 在目标会话的 composer 上挂一条通知.
+ *
+ * 通知出口 (`SessionInput.notify`) 只挂在会话作用域的 facade 上, slot 组件拿到的
+ * `inputActions` 里没有它, 因此这里按会话 id 解析一次作用域.
+ * @param deps - sessions 服务与目标会话 id.
+ * @param text - 通知正文.
+ * @returns 是否成功挂上.
+ */
+export function notifySession({ sessions, sessionId }: SteerSubmitDeps, text: string): boolean {
+  const actx = sessions.scope(sessionId)
+  const conversation = actx?.get('conversation')
+  if (actx === undefined || conversation === undefined) return false
+  try {
+    conversation.input.for(actx).notify('error', text)
+    return true
+  } catch (error) {
+    console.error('[dsh-cmd-send] composer 通知不可用', error)
+    return false
+  }
+}
+
+/**
  * 把队列最上面那条排队消息插话进当前回合 (等价于点队列条上那一行的插话按钮).
  *
  * 与 submitSteer 的分工: 草稿插话提交的是 composer 里的内容, 这里提交的是

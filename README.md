@@ -24,6 +24,15 @@ the sidebar's **Plugins** page:
   the current turn finishes.
 - Steer interrupts the running turn and handles your message immediately, and it
   carries image/file attachments exactly like a queued send does.
+- After an interrupt, every queue-strip row's send button stays usable: clicking
+  it sends that queued message again as an **ordinary message** (not a steer),
+  and the agent runs it from the queue head on its own. The built-in strip greys
+  those buttons out while idle, which strands the queue right after Stop; this
+  plugin re-arms the row and routes the click through a Host-side same-origin
+  endpoint that delivers with `agent.followup()` — the same channel as an
+  ordinary send. A local echo row the Host has not accepted yet has no identity
+  and is never armed; while the session is running the button keeps its built-in
+  behavior (a real steer).
 - With an empty draft, Shift+Cmd/Ctrl+Enter steers only the first queued message:
   the same operation as the steer button on a row of the queue strip, leaving
   every other queued message in place (a local echo row that the Host has not

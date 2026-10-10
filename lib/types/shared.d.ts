@@ -20,3 +20,12 @@ export declare const DEFAULT_SEND_MODE: SendMode;
 export interface CmdSendSettings {
     sendMode: SendMode;
 }
+/** 队列消息改发接口的同源路径前缀. */
+export declare const RELEASE_API_PREFIX = "/dsh-cmd-send/api";
+/** 队列消息改发的响应体. */
+export type ReleaseQueuedResponse = {
+    readonly ok: true;
+} | {
+    readonly ok: false;
+    readonly error: string;
+};

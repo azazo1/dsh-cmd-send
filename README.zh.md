@@ -27,8 +27,13 @@ Alt+Enter / Alt+Shift+Enter.
   本地回声行没有插话按钮, 也不会被这个手势选中). 空闲或队列为空时这个手势交还
   内置逻辑 (什么也不做); 草稿为空且不带 Shift 的 Cmd/Ctrl+Enter 仍是 dsh 内置
   的 "插话全部排队消息".
-- `/` 命令补全与 `@` 引用补全照常可用: 候选菜单高亮着某一行时, 不带修饰的
-  Enter 是选中候选而不是换行. Cmd/Ctrl+Enter 始终是发送手势并绕过菜单, 因此
+- 中断之后, 队列条上每一行的发送按钮仍然可用: 点它会把那条排队消息当作**普通
+  消息**重新发出去 (不是插话), 由智能体自己从队首依次跑. 原生在空闲时会把这三个
+  按钮变灰, 于是点完 "中断" 后队列就困住了; 本插件把这一行重新点亮, 并让这次点击
+  走 Host 侧的同源接口, 用 `agent.followup()` 送达 -- 与普通发送是同一条通道.
+  还没送达 Host 的本地回声行没有身份, 不会点亮; 会话正在运行时按钮保持原生行为
+  (真插话).
+- `/` 命令补全与 `@` 引用补全照常可用: 候选菜单高亮着某一行时, 不带修饰的  Enter 是选中候选而不是换行. Cmd/Ctrl+Enter 始终是发送手势并绕过菜单, 因此
   以 `/` 开头的草稿总有出路: 直接把技能名打全 (`/skill-name`) 再按
   Cmd/Ctrl+Enter 就发出去了 (技能由 Host 侧识别, 不必先按菜单选中).
   命令进入参数输入 (如 `/plan ` 之后) 时 Enter 同样换行, 参数可以写多行.
@@ -89,6 +94,15 @@ dsh plugin --profile web remove dsh-cmd-send
   composer 卡片 (`[data-composer-card]` 内带 `aria-activedescendant` 的
   `[data-trigger-menu]` 列表) 是否高亮着候选, 是则把这次裸 Enter 交还内置的
   菜单仲裁; Cmd/Ctrl+Enter 从不交还, 一律发送.
+- 队列条那三个按钮由 Host 侧的 `POST /dsh-cmd-send/api/release` 支撑: 客户端
+  只解除按钮的禁用态, 点击后把 `{ sessionId, itemId }` 交给 Host, Host 从
+  `agent.inbox.nextTurn` 里取出该条, 先 `remove` 再 `followup`, 因此它按普通
+  消息重新排队并唤醒空闲的 driver, 而不是插话. 消息 id 按队列位置取: 原生列表
+  就是按 `InputState.queue` 的顺序渲染 `<li>`, 回声行排在真正的排队行之后,
+  因此非回声行的第 n 行对应 `queue[n]`; 状态里没有对应项就放弃这一行, 不发
+  猜测的消息. 会话正在运行时按钮保持原生行为. 接口走同源 HTTP 并复用
+  `connection.requestRejection` 的鉴权 (同时挡住 DNS rebinding 与跨站请求).
+  这一项不依赖发送快捷键模式, 两种模式下都生效.
 - ask 提问卡片接管 composer 座位时, 主 composer 只是被隐藏而仍挂载, 卡片里的
   回答框是普通 textarea 而不是 Lexical composer, 因此控制器额外识别卡片根节点
   (`[data-question-key]`) 内的 textarea: 裸 Enter 伪装成 Shift+Enter 交给浏览器
