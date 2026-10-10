@@ -14,16 +14,23 @@ the sidebar's **Plugins** page:
 | Key | Idle | Busy |
 | --- | --- | --- |
 | Enter | newline | newline |
-| Cmd/Ctrl+Enter | send | queue |
-| Shift+Cmd/Ctrl+Enter | send | steer |
-| Alt+Enter (Windows/Linux) | send | queue |
-| Alt+Shift+Enter (Windows/Linux) | send | steer |
+| Cmd/Ctrl+Enter | send | queue (steers the whole queue when the draft is empty) |
+| Shift+Cmd/Ctrl+Enter | send | steer; with an empty draft, steers the first queued message |
+| Alt+Enter (Windows/Linux) | send | queue (steers the whole queue when the draft is empty) |
+| Alt+Shift+Enter (Windows/Linux) | send | steer; with an empty draft, steers the first queued message |
 | Shift+Enter | newline | newline |
 
 - Busy means the agent is running; queued messages execute in FIFO order after
   the current turn finishes.
 - Steer interrupts the running turn and handles your message immediately, and it
   carries image/file attachments exactly like a queued send does.
+- With an empty draft, Shift+Cmd/Ctrl+Enter steers only the first queued message:
+  the same operation as the steer button on a row of the queue strip, leaving
+  every other queued message in place (a local echo row that the Host has not
+  accepted yet has no steer button and is never picked by this gesture). While
+  idle, or with an empty queue, that gesture goes back to the built-in logic (it
+  does nothing); the Shift-less Cmd/Ctrl+Enter on an empty draft remains the
+  built-in "steer the whole queue".
 - The `/` command and `@` reference completions keep working: while the
   candidate menu shows a highlighted row, Enter picks that candidate instead of
   breaking the line. Cmd/Ctrl+Enter stays the send gesture and bypasses the
@@ -90,7 +97,13 @@ dsh plugin --profile web remove dsh-cmd-send
   `sessions.scope(id)`), which owns draft commit, attachment serialization,
   command adjudication, and failure recovery. Steer only applies while the agent
   is busy and the transport supports it (a continuable subagent session),
-  otherwise the gesture falls back to a normal submit. Disabled, the controller
+  otherwise the gesture falls back to a normal submit. With an empty draft,
+  Shift+Cmd/Ctrl+Enter takes the queue channel instead: the top row of
+  `InputState.queue` goes through
+  `conversation.updateQueue(id, { kind: 'steer' })`, the same operation as that
+  row's steer button; while idle, with an empty queue, on a transport without
+  steer, or when the hand-off fails, the keypress does nothing at all. Disabled,
+  the controller
   passes every key through to the built-in logic. Plain Enter is rewritten as
   Shift+Enter so Lexical inserts a line break; before rewriting, the controller
   checks the candidate menu of the same composer card (`[data-composer-card]`

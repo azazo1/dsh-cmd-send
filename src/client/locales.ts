@@ -10,6 +10,7 @@ export type CmdSendKey =
   | 'sendMode' | 'sendModeHint' | 'enter' | 'cmdEnter'
   | 'overridden' | 'reset'
   | 'readOnly' | 'unavailable' | 'save' | 'saving' | 'saveFailed'
+  | 'queueSteerFailed'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -32,6 +33,7 @@ export const en: Record<CmdSendKey, string> = {
   save: 'Save',
   saving: 'Saving...',
   saveFailed: 'The deployment did not accept these values; they were left for you to correct.',
+  queueSteerFailed: 'The first queued message could not be steered into the running turn.',
 }
 
 /** Simplified Chinese copy. */
@@ -48,6 +50,7 @@ export const zh: Record<CmdSendKey, string> = {
   save: '保存',
   saving: '保存中...',
   saveFailed: '本部署没有接受这些值, 已保留供你修改.',
+  queueSteerFailed: '队首那条排队消息没能插话进当前回合.',
 }
 
 /**

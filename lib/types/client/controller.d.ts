@@ -2,12 +2,15 @@ import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client';
 import type { ConfigForm as SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client';
 import { type CmdSendSettings } from '../shared.ts';
+import type { CmdSendKey } from './locales.ts';
 /** 控制器完整 props: dock slot 的运行时 props + sessions 服务 + 设置 scope. */
 export type KeymapControllerProps = PropsRuntime<'conversation.input.dock'> & {
     /** sessions 服务, 用于由会话 id 解析会话作用域 (steer 提交). */
     sessions: ISessions;
     /** dsh-cmd-send 设置 scope (发送模式读取). */
     scope: SettingsScope<CmdSendSettings>;
+    /** 本插件字典的读取函数, 用于 composer 通知文案. */
+    t: (key: CmdSendKey) => string;
 };
 /**
  * composer 输入面: Lexical 把根节点标成 data-composer-input.
@@ -33,4 +36,4 @@ export declare function rewriteShiftKey(event: KeyboardEvent, shiftKey: boolean)
  * 渲染隐身控制器: 挂载全局 keydown 捕获监听, 返回 null.
  * 所有状态经 ref 传递, 监听器只挂载一次, 无需随渲染重建.
  */
-export declare function KeymapController({ useSession, useInput, inputActions, sessionId, sessions, scope }: KeymapControllerProps): null;
+export declare function KeymapController({ useSession, useInput, inputActions, sessionId, sessions, scope, t }: KeymapControllerProps): null;

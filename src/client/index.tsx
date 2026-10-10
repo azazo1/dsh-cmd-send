@@ -51,6 +51,7 @@ export function apply(ctx: Context): void {
     name: 'conversation.input.dock',
     id: 'dsh-cmd-send-keymap',
     order: 999,
+    locale: NS,
     inject: () => ({ sessions: ctx.sessions, scope }),
   }, KeymapController))
 }

@@ -3,11 +3,13 @@ import { describe, expect, it } from 'vitest'
 import type { DraftAttachmentId } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { decideKey, hasContent, isAltSendPlatform, type DecideInput, type KeyEventLike } from '../src/client/keymap.ts'
 
-const CMD_ENTER: DecideInput = { mode: 'cmd-enter', phase: 'plain', content: true, candidateHighlight: false }
-const CMD_ENTER_EMPTY: DecideInput = { mode: 'cmd-enter', phase: 'plain', content: false, candidateHighlight: false }
-const CMD_ENTER_CANDIDATE: DecideInput = { mode: 'cmd-enter', phase: 'plain', content: true, candidateHighlight: true }
-const CMD_ENTER_ALT: DecideInput = { mode: 'cmd-enter', phase: 'plain', content: true, candidateHighlight: false, altAsSend: true }
-const DEFAULT: DecideInput = { mode: 'enter', phase: 'plain', content: true, candidateHighlight: false }
+const CMD_ENTER: DecideInput = { mode: 'cmd-enter', phase: 'plain', content: true, candidateHighlight: false, running: false, queued: false }
+const CMD_ENTER_EMPTY: DecideInput = { mode: 'cmd-enter', phase: 'plain', content: false, candidateHighlight: false, running: false, queued: false }
+const CMD_ENTER_CANDIDATE: DecideInput = { mode: 'cmd-enter', phase: 'plain', content: true, candidateHighlight: true, running: false, queued: false }
+const CMD_ENTER_ALT: DecideInput = { mode: 'cmd-enter', phase: 'plain', content: true, candidateHighlight: false, running: false, queued: false, altAsSend: true }
+const DEFAULT: DecideInput = { mode: 'enter', phase: 'plain', content: true, candidateHighlight: false, running: false, queued: false }
+/** 空草稿 + 忙碌 + 有排队消息: 队首插话手势的触发条件. */
+const CMD_ENTER_QUEUED: DecideInput = { mode: 'cmd-enter', phase: 'plain', content: false, candidateHighlight: false, running: true, queued: true }
 
 function enter(overrides: Partial<KeyEventLike> = {}): KeyEventLike {
   return {
@@ -40,8 +42,8 @@ describe('decideKey', () => {
 
   it('提交交易进行中放行', () => {
     for (const phase of ['adjudicating', 'submitting'] as const) {
-      expect(decideKey(enter(), { mode: 'cmd-enter', phase, content: true, candidateHighlight: false })).toEqual({ kind: 'pass' })
-      expect(decideKey(enter({ metaKey: true }), { mode: 'cmd-enter', phase, content: true, candidateHighlight: false })).toEqual({ kind: 'pass' })
+      expect(decideKey(enter(), { ...CMD_ENTER, phase })).toEqual({ kind: 'pass' })
+      expect(decideKey(enter({ metaKey: true }), { ...CMD_ENTER, phase })).toEqual({ kind: 'pass' })
     }
   })
 
@@ -56,7 +58,7 @@ describe('decideKey', () => {
   })
 
   it('命令已 claim 时 Enter 换行, Cmd/Ctrl+Enter 才提交', () => {
-    const claimed: DecideInput = { mode: 'cmd-enter', phase: 'claimed', content: true, candidateHighlight: false }
+    const claimed: DecideInput = { ...CMD_ENTER, phase: 'claimed' }
     expect(decideKey(enter(), claimed)).toEqual({ kind: 'newline' })
     expect(decideKey(enter({ metaKey: true }), claimed)).toEqual({ kind: 'send' })
     expect(decideKey(enter({ ctrlKey: true }), claimed)).toEqual({ kind: 'send' })
@@ -80,6 +82,39 @@ describe('decideKey', () => {
   it('草稿为空且无附件时 Cmd/Ctrl+Enter 放行 (没有可发送内容)', () => {
     expect(decideKey(enter({ metaKey: true }), CMD_ENTER_EMPTY)).toEqual({ kind: 'pass' })
     expect(decideKey(enter({ metaKey: true, shiftKey: true }), CMD_ENTER_EMPTY)).toEqual({ kind: 'pass' })
+  })
+
+  it('空草稿 + 忙碌 + 有排队时 Shift+Cmd/Ctrl+Enter 插话队首那条', () => {
+    expect(decideKey(enter({ metaKey: true, shiftKey: true }), CMD_ENTER_QUEUED)).toEqual({ kind: 'steer-first' })
+    expect(decideKey(enter({ ctrlKey: true, shiftKey: true }), CMD_ENTER_QUEUED)).toEqual({ kind: 'steer-first' })
+  })
+
+  it('空草稿 + 忙碌 + 有排队时 Cmd/Ctrl+Enter 仍交还内置逻辑 (插话全部排队)', () => {
+    expect(decideKey(enter({ metaKey: true }), CMD_ENTER_QUEUED)).toEqual({ kind: 'pass' })
+  })
+
+  it('空闲或队列为空时空草稿的 Shift+Cmd/Ctrl+Enter 交还内置逻辑', () => {
+    expect(decideKey(enter({ metaKey: true, shiftKey: true }), { ...CMD_ENTER_QUEUED, running: false })).toEqual({ kind: 'pass' })
+    expect(decideKey(enter({ metaKey: true, shiftKey: true }), { ...CMD_ENTER_QUEUED, queued: false })).toEqual({ kind: 'pass' })
+  })
+
+  it('有草稿时 Shift+Cmd/Ctrl+Enter 仍是插话当前草稿 (不抢队首)', () => {
+    expect(decideKey(enter({ metaKey: true, shiftKey: true }), { ...CMD_ENTER_QUEUED, content: true })).toEqual({ kind: 'steer' })
+  })
+
+  it('Windows/Linux 上空草稿的 Alt+Shift+Enter 同样插话队首', () => {
+    expect(decideKey(enter({ altKey: true, shiftKey: true }), { ...CMD_ENTER_QUEUED, altAsSend: true })).toEqual({
+      kind: 'steer-first',
+    })
+    expect(decideKey(enter({ altKey: true }), { ...CMD_ENTER_QUEUED, altAsSend: true })).toEqual({ kind: 'pass' })
+  })
+
+  it('长按空草稿的 Shift+Cmd+Enter 放行, 避免连插', () => {
+    expect(decideKey(enter({ metaKey: true, shiftKey: true, repeat: true }), CMD_ENTER_QUEUED)).toEqual({ kind: 'pass' })
+  })
+
+  it('enter 模式空草稿的 Shift+Cmd+Enter 放行', () => {
+    expect(decideKey(enter({ metaKey: true, shiftKey: true }), { ...CMD_ENTER_QUEUED, mode: 'enter' })).toEqual({ kind: 'pass' })
   })
 
   it('Cmd/Ctrl+Enter 发送', () => {

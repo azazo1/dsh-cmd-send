@@ -25,6 +25,10 @@ interface Harness {
   actions: { setDraft: ReturnType<typeof vi.fn>; submit: ReturnType<typeof vi.fn> }
   /** 内置提交机的提交入口 (steer 交棒目标). */
   submit: ReturnType<typeof vi.fn>
+  /** 内置提交机的队列变更入口 (队首插话交棒目标). */
+  updateQueue: ReturnType<typeof vi.fn>
+  /** 内置提交机的 composer 通知出口. */
+  notify: ReturnType<typeof vi.fn>
   /** 卸载并清理 DOM. */
   unmount(): void
 }
@@ -32,18 +36,27 @@ interface Harness {
 /** 子 agent 会话地址 (主会话为 null). */
 type SubagentStub = { address: { mode: string } } | null
 
+/** 一条排队消息的最小形状 (控制器只读它的 id). */
+function queuedRow(id: string): { id: string } {
+  return { id }
+}
+
 /** 按给定草稿与忙碌状态挂载控制器. */
 function mount(options: {
   draft: string
   attachmentIds?: readonly unknown[]
   running: boolean
   mode?: SendMode
+  /** 队列里等待中的消息 (默认空队列). */
+  queue?: readonly { id: string }[]
   /** 会话是否为子 agent 会话 (默认主会话). */
   subagent?: SubagentStub
   /** 会话作用域解析是否可用 (默认可用). */
   scopeResolvable?: boolean
   /** conversation 服务是否已提供 (默认已提供). */
   conversationAvailable?: boolean
+  /** 队首插话的 updateQueue 是否失败 (默认成功). */
+  queueSteerFails?: boolean
   /** 在同一个 composer 卡片内放一个候选菜单 (/, @ 补全), 可带高亮项. */
   menu?: { highlight: boolean }
 }): Harness {
@@ -66,16 +79,20 @@ function mount(options: {
 
   const actions = { setDraft: vi.fn(), submit: vi.fn() }
   const submit = vi.fn()
+  const updateQueue = vi.fn(async () => {
+    if (options.queueSteerFails === true) throw new Error('steer 失败')
+  })
+  const notify = vi.fn()
   const input = {
     draft: options.draft,
     attachmentIds: options.attachmentIds ?? [],
     draftRev: 1,
     phase: 'plain',
     occurrences: [],
-    queue: [],
+    queue: options.queue ?? [],
   }
   const snapshot = { running: options.running, subagent: options.subagent ?? null }
-  const conversation = { input: { for: () => ({ submit }) } }
+  const conversation = { input: { for: () => ({ submit, notify }) }, updateQueue }
   const actx = { get: (name: string) => (name === 'conversation' && options.conversationAvailable !== false ? conversation : undefined) }
   const props = {
     useSession: (select: (value: typeof snapshot) => unknown) => select(snapshot),
@@ -84,6 +101,7 @@ function mount(options: {
     sessionId: 'session-1',
     sessions: { scope: () => (options.scopeResolvable === false ? undefined : actx) },
     scope: { getSnapshot: () => ({ value: { sendMode: options.mode ?? 'cmd-enter' } as CmdSendSettings }) },
+    t: (key: string) => key,
   } as unknown as KeymapControllerProps
 
   const root = createRoot(container)
@@ -95,6 +113,8 @@ function mount(options: {
     composer,
     actions,
     submit,
+    updateQueue,
+    notify,
     unmount: () => {
       act(() => root.unmount())
       card.remove()
@@ -185,6 +205,72 @@ describe('KeymapController', () => {
     expect(pressEnter(harness.composer, { metaKey: true, shiftKey: true })).toBe(false)
     expect(harness.actions.submit).not.toHaveBeenCalled()
     expect(harness.submit).not.toHaveBeenCalled()
+  })
+
+  it('空草稿 + 忙碌 + 有排队时 Shift+Cmd+Enter 只插话队首那条', async () => {
+    harness = mount({ draft: '', running: true, queue: [queuedRow('q-1'), queuedRow('q-2')] })
+    expect(pressEnter(harness.composer, { metaKey: true, shiftKey: true })).toBe(true)
+    await act(async () => {})
+    expect(harness.updateQueue).toHaveBeenCalledTimes(1)
+    expect(harness.updateQueue).toHaveBeenCalledWith('q-1', { kind: 'steer' })
+    expect(harness.submit).not.toHaveBeenCalled()
+    expect(harness.actions.submit).not.toHaveBeenCalled()
+  })
+
+  it('空草稿 + 忙碌 + 有排队时 Cmd+Enter 仍交还内置逻辑 (插话全部排队)', () => {
+    harness = mount({ draft: '', running: true, queue: [queuedRow('q-1')] })
+    expect(pressEnter(harness.composer, { metaKey: true })).toBe(false)
+    expect(harness.updateQueue).not.toHaveBeenCalled()
+  })
+
+  it('空草稿 + 忙碌但队列为空时 Shift+Cmd+Enter 交还内置逻辑', () => {
+    harness = mount({ draft: '', running: true })
+    expect(pressEnter(harness.composer, { metaKey: true, shiftKey: true })).toBe(false)
+    expect(harness.updateQueue).not.toHaveBeenCalled()
+  })
+
+  it('空闲时队列非空也不抢 Shift+Cmd+Enter', () => {
+    harness = mount({ draft: '', running: false, queue: [queuedRow('q-1')] })
+    expect(pressEnter(harness.composer, { metaKey: true, shiftKey: true })).toBe(false)
+    expect(harness.updateQueue).not.toHaveBeenCalled()
+  })
+
+  it('有草稿时 Shift+Cmd+Enter 仍插话当前草稿, 不动队列', () => {
+    harness = mount({ draft: '打断一下', running: true, queue: [queuedRow('q-1')] })
+    expect(pressEnter(harness.composer, { metaKey: true, shiftKey: true })).toBe(true)
+    expect(harness.submit).toHaveBeenCalledWith('steer')
+    expect(harness.updateQueue).not.toHaveBeenCalled()
+  })
+
+  it('子 agent 会话不可续聊时空草稿的 Shift+Cmd+Enter 不动队列', () => {
+    harness = mount({ draft: '', running: true, queue: [queuedRow('q-1')], subagent: { address: { mode: 'one-shot' } } })
+    expect(pressEnter(harness.composer, { metaKey: true, shiftKey: true })).toBe(true)
+    expect(harness.updateQueue).not.toHaveBeenCalled()
+    expect(harness.actions.submit).not.toHaveBeenCalled()
+  })
+
+  it('会话作用域解析不到时空草稿的 Shift+Cmd+Enter 不动队列', () => {
+    harness = mount({ draft: '', running: true, queue: [queuedRow('q-1')], scopeResolvable: false })
+    expect(pressEnter(harness.composer, { metaKey: true, shiftKey: true })).toBe(true)
+    expect(harness.updateQueue).not.toHaveBeenCalled()
+  })
+
+  it('关闭插件键位时空草稿的 Shift+Cmd+Enter 完全不拦截', () => {
+    harness = mount({ draft: '', running: true, queue: [queuedRow('q-1')], mode: DEFAULT_SEND_MODE })
+    expect(pressEnter(harness.composer, { metaKey: true, shiftKey: true })).toBe(false)
+    expect(harness.updateQueue).not.toHaveBeenCalled()
+  })
+
+  it('队首插话失败时提示一条 composer 通知', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      harness = mount({ draft: '', running: true, queue: [queuedRow('q-1')], queueSteerFails: true })
+      expect(pressEnter(harness.composer, { metaKey: true, shiftKey: true })).toBe(true)
+      await act(async () => {})
+      expect(harness.notify).toHaveBeenCalledWith('error', 'queueSteerFailed')
+    } finally {
+      error.mockRestore()
+    }
   })
 
   it('关闭插件键位时完全不拦截', () => {

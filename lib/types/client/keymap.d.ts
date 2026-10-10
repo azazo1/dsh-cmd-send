@@ -27,6 +27,8 @@ export type KeyDecision = {
     kind: 'send';
 } | {
     kind: 'steer';
+} | {
+    kind: 'steer-first';
 };
 /** 决策所需的输入状态. */
 export interface DecideInput {
@@ -40,6 +42,14 @@ export interface DecideInput {
      * 而 Cmd/Ctrl/Alt+Enter 始终是插件的发送手势, 会绕过菜单直接发送当前草稿.
      */
     candidateHighlight: boolean;
+    /**
+     * 当前会话是否忙碌 (智能体正在运行).
+     * 空草稿的 Shift+Cmd/Ctrl+Enter 只在忙碌时才去插话队首那条排队消息:
+     * 空闲时没有可插话的回合, 队列里的消息本来就会自己开始执行.
+     */
+    running: boolean;
+    /** 队列里是否还有等待中的消息 (空草稿的队首插话手势要求有得可插). */
+    queued: boolean;
     /**
      * Windows/Linux 为 true: 把 Alt 当成发送修饰键.
      * macOS 为 false / 缺省: Option+Enter 继续放行.

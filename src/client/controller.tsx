@@ -3,6 +3,8 @@
  * 通过 document 捕获阶段拦截 composer (Lexical contenteditable) 上的 Enter,
  * 实现 Cmd+Enter 发送 / Shift+Cmd+Enter 插话 / Enter 换行的键位映射;
  * Windows/Linux 另支持 Alt+Enter 发送 / Alt+Shift+Enter 插话.
+ * 草稿为空时的 Shift+Cmd/Ctrl+Enter 另有一层: 忙碌且队列非空时, 只把队首那条
+ * 排队消息插话进当前回合 (队列条上那一行的插话按钮, 但只按一次).
  * 候选菜单 (/, @ 补全) 高亮着候选时, 不带修饰的 Enter 交还菜单 (选中候选);
  * Cmd/Ctrl+Enter 始终是发送手势, 菜单开着也照发当前草稿.
  * ask 提问卡片接管 composer 座位时, 卡片里的回答框按同一份模式接管 Enter
@@ -18,7 +20,8 @@ import type { ConfigForm as SettingsScope } from '@deepseek-ai/dsh-client-ui-set
 import { DEFAULT_SEND_MODE, type CmdSendSettings } from '../shared.ts'
 import { decideAskAnswerKey, isAskAnswerField } from './ask-field.ts'
 import { decideKey, hasContent, isAltSendPlatform } from './keymap.ts'
-import { steeringAvailable, submitSteer } from './steer.ts'
+import type { CmdSendKey } from './locales.ts'
+import { steeringAvailable, submitQueueItem, submitSteer } from './steer.ts'
 
 /** 控制器完整 props: dock slot 的运行时 props + sessions 服务 + 设置 scope. */
 export type KeymapControllerProps = PropsRuntime<'conversation.input.dock'> & {
@@ -26,6 +29,8 @@ export type KeymapControllerProps = PropsRuntime<'conversation.input.dock'> & {
   sessions: ISessions
   /** dsh-cmd-send 设置 scope (发送模式读取). */
   scope: SettingsScope<CmdSendSettings>
+  /** 本插件字典的读取函数, 用于 composer 通知文案. */
+  t: (key: CmdSendKey) => string
 }
 
 /**
@@ -79,12 +84,12 @@ export function rewriteShiftKey(event: KeyboardEvent, shiftKey: boolean): boolea
  * 渲染隐身控制器: 挂载全局 keydown 捕获监听, 返回 null.
  * 所有状态经 ref 传递, 监听器只挂载一次, 无需随渲染重建.
  */
-export function KeymapController({ useSession, useInput, inputActions, sessionId, sessions, scope }: KeymapControllerProps) {
+export function KeymapController({ useSession, useInput, inputActions, sessionId, sessions, scope, t }: KeymapControllerProps) {
   const running = useSession((s: SessionSnapshot) => s.running) ?? false
   const subagent = useSession((s: SessionSnapshot) => s.subagent) ?? null
   const input = useInput((s: InputState) => s)
-  const latest = useRef({ running, subagent, input, inputActions, sessionId, sessions })
-  latest.current = { running, subagent, input, inputActions, sessionId, sessions }
+  const latest = useRef({ running, subagent, input, inputActions, sessionId, sessions, t })
+  latest.current = { running, subagent, input, inputActions, sessionId, sessions, t }
 
   useEffect(() => {
     const nav = navigator as Navigator & { userAgentData?: { platform?: string } }
@@ -109,6 +114,8 @@ export function KeymapController({ useSession, useInput, inputActions, sessionId
         phase: state.input.phase,
         content: hasContent(state.input),
         candidateHighlight: hasHighlightedCandidate(event.target),
+        running: state.running,
+        queued: state.input.queue.length > 0,
         altAsSend,
       })
       switch (decision.kind) {
@@ -136,6 +143,21 @@ export function KeymapController({ useSession, useInput, inputActions, sessionId
             state.inputActions.submit()
           }
           return
+        case 'steer-first': {
+          event.preventDefault()
+          event.stopImmediatePropagation()
+          const first = state.input.queue[0]
+          // 队列在按键与处理之间被清空 (或会话不支持插话): 什么都不做, 这次按键
+          // 落空总好过误发一条空消息.
+          if (first === undefined || !steeringAvailable(state.subagent)) return
+          submitQueueItem({
+            sessions: state.sessions,
+            sessionId: state.sessionId,
+            itemId: first.id,
+            failure: state.t('queueSteerFailed'),
+          })
+          return
+        }
       }
     }
     document.addEventListener('keydown', onKeyDown, true)

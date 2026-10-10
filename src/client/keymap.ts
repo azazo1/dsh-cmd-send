@@ -31,6 +31,7 @@ export type KeyDecision =
   | { kind: 'newline' } // Enter 换行: 伪装成 Shift+Enter, 走 Lexical 内置换行
   | { kind: 'send' } // Cmd/Ctrl+Enter, 以及 Windows/Linux 的 Alt+Enter: 发送; 忙碌时 Host 自然插入排队
   | { kind: 'steer' } // Shift+Cmd/Ctrl+Enter, 以及 Windows/Linux 的 Alt+Shift+Enter: 忙碌时插话, 空闲时普通发送
+  | { kind: 'steer-first' } // 空草稿的 Shift+Cmd/Ctrl+Enter: 只把队首那条排队消息插话进去
 
 /** 决策所需的输入状态. */
 export interface DecideInput {
@@ -44,6 +45,14 @@ export interface DecideInput {
    * 而 Cmd/Ctrl/Alt+Enter 始终是插件的发送手势, 会绕过菜单直接发送当前草稿.
    */
   candidateHighlight: boolean
+  /**
+   * 当前会话是否忙碌 (智能体正在运行).
+   * 空草稿的 Shift+Cmd/Ctrl+Enter 只在忙碌时才去插话队首那条排队消息:
+   * 空闲时没有可插话的回合, 队列里的消息本来就会自己开始执行.
+   */
+  running: boolean
+  /** 队列里是否还有等待中的消息 (空草稿的队首插话手势要求有得可插). */
+  queued: boolean
   /**
    * Windows/Linux 为 true: 把 Alt 当成发送修饰键.
    * macOS 为 false / 缺省: Option+Enter 继续放行.
@@ -76,8 +85,14 @@ export function decideKey(event: KeyEventLike, input: DecideInput): KeyDecision 
     // 草稿 (按原样发, 不套用高亮候选), 这样 "/xxx" 这类开头的消息总有出路.
     // 长按 Cmd/Ctrl/Alt+Enter 交给内置 keymap 吞掉, 避免连发.
     if (event.repeat) return { kind: 'pass' }
-    // 草稿为空且无附件: 没有可发送的内容, 交还内置逻辑.
-    if (!input.content) return { kind: 'pass' }
+    // 草稿为空且无附件: 没有可发送的内容.
+    if (!input.content) {
+      // Shift+Cmd/Ctrl+Enter 在忙碌且队列非空时改为插话队首那条排队消息;
+      // 其余情况 (空闲, 队列为空, 或没有 Shift) 交还内置逻辑, 保持
+      // "空草稿的 Cmd/Ctrl+Enter 由 dsh 自己处理" 的既有分工.
+      if (event.shiftKey && input.running && input.queued) return { kind: 'steer-first' }
+      return { kind: 'pass' }
+    }
     return event.shiftKey ? { kind: 'steer' } : { kind: 'send' }
   }
   // Shift+Enter (内置换行) 与 macOS Option+Enter 保持原样.

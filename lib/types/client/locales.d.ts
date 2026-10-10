@@ -3,7 +3,7 @@ import type { SettingsFormLabels } from '@deepseek-ai/dsh-client-ui-primitives';
 /** 本插件字典的命名空间, 与包名一致. */
 export declare const NS = "dsh-cmd-send";
 /** 本插件用到的文案键. */
-export type CmdSendKey = 'description' | 'sendMode' | 'sendModeHint' | 'enter' | 'cmdEnter' | 'overridden' | 'reset' | 'readOnly' | 'unavailable' | 'save' | 'saving' | 'saveFailed';
+export type CmdSendKey = 'description' | 'sendMode' | 'sendModeHint' | 'enter' | 'cmdEnter' | 'overridden' | 'reset' | 'readOnly' | 'unavailable' | 'save' | 'saving' | 'saveFailed' | 'queueSteerFailed';
 declare module '@deepseek-ai/dsh-client-ui-slots' {
     interface LocaleNamespaceMap {
         /** 本插件配置卡片的文案. */
